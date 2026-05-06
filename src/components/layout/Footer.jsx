@@ -24,15 +24,15 @@ export function Footer() {
             <h4 className="font-bold text-slate-900 mb-6">Company</h4>
             <ul className="space-y-4">
               <li><Link href="/about" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">About Us</Link></li>
-              <li><Link href="#" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-bold text-slate-900 mb-6">Support</h4>
             <ul className="space-y-4">
-              <li><Link href="#" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Help Center</Link></li>
-              <li><Link href="#" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Contact Us</Link></li>
+              <li><Link href="/help" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Help Center</Link></li>
+              <li><Link href="/contact" className="text-sm text-slate-500 hover:text-blue-600 transition-colors">Contact Us</Link></li>
             </ul>
           </div>
         </div>

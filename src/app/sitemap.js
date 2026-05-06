@@ -32,6 +32,26 @@ export default function sitemap() {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/help`,
+      lastModified: new Date(),
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: new Date(),
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date(),
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date(),
+      priority: 0.5,
+    },
+    {
       url: `${baseUrl}/signup`,
       lastModified: new Date(),
       changeFrequency: 'yearly',

@@ -18,9 +18,13 @@ export async function proxy(req) {
     '/about',
     '/features',
     '/how-it-works',
+    '/privacy',
+    '/terms',
+    '/help',
+    '/contact',
     '/pricing'
   ];
-  const isAuthApi = pathname.startsWith('/api/auth');
+  const isAuthApi = pathname.startsWith('/api/auth') || pathname === '/api/contact';
   const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';
   const isPublicFile = pathname === '/sitemap.xml' || pathname === '/robots.txt';
 

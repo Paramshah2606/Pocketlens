@@ -58,9 +58,9 @@ export default function LandingPage() {
                   {/* <ArrowRight className="ml-2 h-5 w-5" /> */}
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="h-12 rounded-full px-8 border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
+              {/* <Button asChild variant="outline" size="lg" className="h-12 rounded-full px-8 border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
                 <Link href="/login">View Live Demo</Link>
-              </Button>
+              </Button> */}
             </div>
             
             {/* Mockup Preview */}
