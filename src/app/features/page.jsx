@@ -3,8 +3,9 @@ import { Footer } from "@/components/layout/Footer"
 import { Zap, PieChart, Target, Smartphone, Globe, Lock } from "lucide-react"
 
 export const metadata = {
-  title: "Features | PocketLens",
-  description: "Explore the powerful features that make PocketLens the best expense tracker.",
+  title: "PocketLens Features — Expense Tracking, Smart Budgets & Insights",
+  description: "Discover PocketLens features: instant expense logging, interactive spending charts, smart budget alerts, and secure cloud sync. Free expense tracker for everyone.",
+  alternates: { canonical: '/features' },
 }
 
 export default function FeaturesPage() {

@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 
 export const metadata = {
-  title: "Help Center | PocketLens",
-  description: "Find answers to common questions and learn how to use PocketLens.",
+  title: "PocketLens Help Center — FAQs & Support",
+  description: "Get answers to common PocketLens questions. Learn how to track expenses, manage budgets, and get the most out of PocketLens.",
+  alternates: { canonical: '/help' },
 }
 
 export default function HelpPage() {
@@ -33,6 +34,20 @@ export default function HelpPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <Navbar />
       
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(({ q, a }) => ({
+              "@type": "Question",
+              "name": q,
+              "acceptedAnswer": { "@type": "Answer", "text": a }
+            }))
+          })
+        }}
+      />
       <main className="flex-1">
         <section className="py-20 bg-blue-600 text-white">
           <div className="container mx-auto max-w-4xl px-6 text-center">

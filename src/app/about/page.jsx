@@ -3,8 +3,9 @@ import { Footer } from "@/components/layout/Footer"
 import { Shield, Users, Heart } from "lucide-react"
 
 export const metadata = {
-  title: "About Us | PocketLens",
-  description: "Learn more about the team and mission behind PocketLens.",
+  title: "About PocketLens — Our Story & Mission",
+  description: "PocketLens was built to make personal finance simple and accessible. Learn about the story, mission, and values behind the PocketLens expense tracker.",
+  alternates: { canonical: '/about' },
 }
 
 export default function AboutPage() {

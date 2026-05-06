@@ -3,8 +3,9 @@ import { Footer } from "@/components/layout/Footer"
 import { UserPlus, PlusCircle, BarChart3 } from "lucide-react"
 
 export const metadata = {
-  title: "How it Works | PocketLens",
-  description: "Learn how to get started with PocketLens in three simple steps.",
+  title: "How PocketLens Works — Simple Expense Tracking in 3 Steps",
+  description: "Learn how PocketLens helps you track expenses in seconds. Sign up, log your first expense, and start gaining insights into your spending immediately.",
+  alternates: { canonical: '/how-it-works' },
 }
 
 export default function HowItWorksPage() {

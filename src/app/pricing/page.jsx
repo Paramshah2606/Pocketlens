@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 export const metadata = {
-  title: "Pricing | PocketLens",
-  description: "PocketLens is free for everyone. No hidden fees, no subscriptions.",
+  title: "PocketLens Pricing — Free Expense Tracker for Everyone",
+  description: "PocketLens is completely free. No subscriptions, no hidden fees. Start tracking your expenses with PocketLens today — zero cost, forever.",
+  alternates: { canonical: '/pricing' },
 }
 
 export default function PricingPage() {

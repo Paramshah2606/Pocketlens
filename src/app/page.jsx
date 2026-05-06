@@ -8,18 +8,21 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 
 export const metadata = {
-  title: 'PocketLens | Smart Expense Tracking for Modern Lives',
-  description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+  title: 'PocketLens — Free Expense Tracker & Budget Manager',
+  description: 'PocketLens is a free, mobile-first expense tracker. Log expenses instantly, visualize spending with charts, and manage budgets effortlessly. Try PocketLens free.',
+  alternates: { canonical: '/' },
   openGraph: {
-    title: 'PocketLens | Smart Expense Tracking for Modern Lives',
-    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+    title: 'PocketLens — Free Expense Tracker & Budget Manager',
+    description: 'PocketLens is a free, mobile-first expense tracker. Log expenses instantly, visualize spending, and manage budgets effortlessly.',
     url: '/',
     type: 'website',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'PocketLens — Free Expense Tracker' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PocketLens | Smart Expense Tracking for Modern Lives',
-    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+    title: 'PocketLens — Free Expense Tracker & Budget Manager',
+    description: 'PocketLens is a free, mobile-first expense tracker. Log expenses instantly and manage your budgets.',
+    images: ['/opengraph-image'],
   },
 }
 
@@ -40,7 +43,7 @@ export default function LandingPage() {
           <div className="container mx-auto max-w-6xl px-6 relative z-10 text-center">
             <div className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50/50 px-3 py-1 text-sm font-medium text-blue-600 mb-8 shadow-sm backdrop-blur-sm">
               <span className="flex h-2 w-2 rounded-full bg-blue-600 mr-2 animate-pulse"></span>
-              Now available for everyone
+              PocketLens — Now available for everyone
             </div>
             
             <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl md:text-7xl leading-[1.1]">
@@ -48,7 +51,7 @@ export default function LandingPage() {
             </h1>
             
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl leading-relaxed">
-              The smartest way to track expenses, set budgets, and gain meaningful insights into your spending habits. Designed for mobile, built for speed.
+              The smartest way to track expenses with <strong>PocketLens</strong> — set budgets, and gain meaningful insights into your spending habits. Designed for mobile, built for speed.
             </p>
             
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">

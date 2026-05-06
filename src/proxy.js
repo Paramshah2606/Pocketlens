@@ -22,7 +22,9 @@ export async function proxy(req) {
     '/terms',
     '/help',
     '/contact',
-    '/pricing'
+    '/pricing',
+    '/opengraph-image',
+    '/icon'
   ];
   const isAuthApi = pathname.startsWith('/api/auth') || pathname === '/api/contact';
   const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';

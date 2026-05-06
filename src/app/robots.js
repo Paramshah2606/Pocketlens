@@ -1,19 +1,19 @@
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketlens.app';
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketlenss.vercel.app';
 
 export default function robots() {
   return {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/login', '/signup', '/forgot-password'],
+        allow: '/',
         disallow: [
           '/api/',
-          '/dashboard',
-          '/expenses',
-          '/budgets',
-          '/settings',
-          '/verify',
-          '/reset-password',
+          '/dashboard/',
+          '/expenses/',
+          '/budgets/',
+          '/settings/',
+          '/verify/',
+          '/reset-password/',
         ],
       },
     ],
