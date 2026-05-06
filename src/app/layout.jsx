@@ -11,6 +11,9 @@ const inter = Inter({
 export const metadata = {
   title: "PocketLens",
   description: "Smart Expense Tracking",
+  verification: {
+    google: "MLpCV1yUFupl8FE9jxjOT6RoBJhIoWNApQZep2_OMBY",
+  },
 };
 
 export default function RootLayout({ children }) {
