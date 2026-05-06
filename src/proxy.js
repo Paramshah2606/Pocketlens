@@ -8,7 +8,18 @@ export async function proxy(req) {
   const token = req.cookies.get('token')?.value;
   const { pathname } = req.nextUrl;
 
-  const publicPaths = ['/', '/login', '/signup', '/verify', '/forgot-password', '/reset-password'];
+  const publicPaths = [
+    '/', 
+    '/login', 
+    '/signup', 
+    '/verify', 
+    '/forgot-password', 
+    '/reset-password',
+    '/about',
+    '/features',
+    '/how-it-works',
+    '/pricing'
+  ];
   const isAuthApi = pathname.startsWith('/api/auth');
   const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';
   const isPublicFile = pathname === '/sitemap.xml' || pathname === '/robots.txt';

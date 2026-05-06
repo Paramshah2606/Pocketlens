@@ -4,6 +4,8 @@ import { ArrowRight, PieChart, Zap, Target, LayoutDashboard, Wallet, TrendingUp,
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/Logo"
 import { MockChart } from "@/components/ui/MockChart"
+import { Navbar } from "@/components/layout/Navbar"
+import { Footer } from "@/components/layout/Footer"
 
 export const metadata = {
   title: 'PocketLens | Smart Expense Tracking for Modern Lives',
@@ -24,20 +26,7 @@ export const metadata = {
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Logo size="md" />
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">
-              Log in
-            </Link>
-            <Button asChild size="sm" className="rounded-full px-5 shadow-sm">
-              <Link href="/signup">Sign up free</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="flex-1">
         {/* Hero Section */}
@@ -209,16 +198,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-12">
-        <div className="container mx-auto max-w-6xl px-6 flex flex-col md:flex-row items-center justify-between">
-          <div className="mb-4 md:mb-0">
-            <Logo size="sm" asLink={false} className="opacity-70 grayscale" />
-          </div>
-          <p className="text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} PocketLens. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
