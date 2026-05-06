@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter, useSearchParams } from "next/navigation"
 import { KeyRound, Loader2, ArrowRight } from "lucide-react"
@@ -12,10 +12,24 @@ import { Label } from "@/components/ui/label"
 
 function VerifyForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const email = searchParams.get("email")
+  const isReset = searchParams.get("isReset") === "true"
+  
+  const [email, setEmail] = useState(searchParams.get("email") || "")
+  const [userId, setUserId] = useState(searchParams.get("userId") || "")
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedEmail = sessionStorage.getItem("reset_email")
+      const storedUserId = sessionStorage.getItem("reset_userId")
+      if (isReset && storedEmail) setEmail(storedEmail)
+      if (isReset && storedUserId) setUserId(storedUserId)
+    }
+  }, [isReset])
   
   const { register, handleSubmit, formState: { errors } } = useForm()
 
@@ -29,10 +43,13 @@ function VerifyForm() {
     setError("")
     
     try {
-      const res = await fetch("/api/auth/verify", {
+      const endpoint = isReset ? "/api/auth/verify-reset-otp" : "/api/auth/verify"
+      const payload = isReset ? { userId, otp: data.otp } : { email, otp: data.otp }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: data.otp }),
+        body: JSON.stringify(payload),
       })
       
       const resData = await res.json()
@@ -41,12 +58,49 @@ function VerifyForm() {
         throw new Error(resData.error || "Failed to verify")
       }
 
-      router.push("/dashboard")
-      router.refresh()
+      if (isReset) {
+        // Store token in sessionStorage and clear temporary reset info
+        sessionStorage.setItem("reset_token", resData.resetToken)
+        router.push(`/reset-password`)
+      } else {
+        router.push("/dashboard")
+        router.refresh()
+      }
     } catch (err) {
       setError(err.message)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (!email && !userId) {
+      setError("Information missing to resend OTP.")
+      return
+    }
+
+    setIsResending(true)
+    setError("")
+    setResendSuccess("")
+    
+    try {
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, email }),
+      })
+      
+      const resData = await res.json()
+
+      if (!res.ok) {
+        throw new Error(resData.error || "Failed to resend OTP")
+      }
+
+      setResendSuccess("A new code has been sent to your email.")
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -74,6 +128,11 @@ function VerifyForm() {
           {error && (
             <div className="rounded-lg bg-red-50/80 border border-red-100 p-4 text-sm text-red-600 font-medium text-center">
               {error}
+            </div>
+          )}
+          {resendSuccess && (
+            <div className="rounded-lg bg-green-50/80 border border-green-100 p-4 text-sm text-green-600 font-medium text-center">
+              {resendSuccess}
             </div>
           )}
 
@@ -104,8 +163,13 @@ function VerifyForm() {
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Didn't receive the code?{" "}
-          <button type="button" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-            Click to resend
+          <button 
+            type="button" 
+            onClick={handleResend}
+            disabled={isResending}
+            className="font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+          >
+            {isResending ? "Sending..." : "Click to resend"}
           </button>
         </p>
         <p className="mt-4 text-center text-sm">

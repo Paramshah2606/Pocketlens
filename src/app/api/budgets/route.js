@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Budget from '@/models/Budget';
 import Expense from '@/models/Expense';
+import Category from '@/models/Category';
 
 export async function GET(req) {
   try {

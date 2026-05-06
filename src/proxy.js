@@ -8,7 +8,7 @@ export async function proxy(req) {
   const token = req.cookies.get('token')?.value;
   const { pathname } = req.nextUrl;
 
-  const publicPaths = ['/', '/login', '/signup', '/verify'];
+  const publicPaths = ['/', '/login', '/signup', '/verify', '/forgot-password', '/reset-password'];
   const isAuthApi = pathname.startsWith('/api/auth');
 
   // Allow access to public paths and auth APIs without a token

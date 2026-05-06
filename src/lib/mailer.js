@@ -1,13 +1,16 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT || 587,
-  secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 export const sendOTP = async (email, otp) => {
@@ -33,6 +36,7 @@ export const sendOTP = async (email, otp) => {
 
   try {
     await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully");
     return true;
   } catch (error) {
     console.error('Error sending email:', error);

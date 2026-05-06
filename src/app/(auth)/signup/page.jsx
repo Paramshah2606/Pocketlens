@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Wallet, Loader2, ArrowRight } from "lucide-react"
+import { Wallet, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { Logo } from "@/components/ui/Logo"
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
   
@@ -108,16 +109,25 @@ export default function SignupPage() {
             
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-slate-700">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                className="h-11 bg-slate-50/50 border-slate-200 focus-visible:ring-primary/20 focus-visible:border-primary transition-all"
-                placeholder="Create a strong password"
-                {...register("password", { 
-                  required: "Password is required",
-                  minLength: { value: 6, message: "Password must be at least 6 characters" }
-                })}
-              />
+              <div className="relative">
+                <Input 
+                  id="password" 
+                  type={showPassword ? "text" : "password"} 
+                  className="h-11 bg-slate-50/50 border-slate-200 focus-visible:ring-primary/20 focus-visible:border-primary transition-all pr-10"
+                  placeholder="Create a strong password"
+                  {...register("password", { 
+                    required: "Password is required",
+                    minLength: { value: 6, message: "Password must be at least 6 characters" }
+                  })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
             </div>
 

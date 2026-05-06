@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Expense from '@/models/Expense';
+import Category from '@/models/Category';
 
 export async function PUT(req, { params }) {
   try {

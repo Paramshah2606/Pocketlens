@@ -46,12 +46,12 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 flex-col border-r bg-white md:flex">
+      <aside className="hidden w-64 flex-col border-r bg-white md:flex h-screen sticky top-0">
         <div className="flex h-16 items-center border-b px-6">
           <Logo size="md" asLink={false} />
         </div>
         
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-1 p-4 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (

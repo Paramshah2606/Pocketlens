@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   otp: { type: String },
   otpExpiry: { type: Date },
+  resetToken: { type: String },
+  resetTokenExpiry: { type: Date },
   currency: { type: String, default: 'INR' },
   theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' }
 }, { timestamps: true });
