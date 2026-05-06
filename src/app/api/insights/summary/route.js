@@ -31,22 +31,25 @@ export async function GET(req) {
     let distribution;
     if (categoryId) {
       const catObjId = new mongoose.Types.ObjectId(categoryId);
-      const subCatAgg = await Expense.aggregate([
+      distribution = await Expense.aggregate([
         { $match: { ...matchQuery, categoryId: catObjId } },
         { $group: { _id: "$subCategoryId", value: { $sum: "$amount" } } },
-        { $sort: { value: -1 } }
+        { $sort: { value: -1 } },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "_id",
+            foreignField: "_id",
+            as: "subCatInfo"
+          }
+        },
+        {
+          $project: {
+            value: 1,
+            name: { $ifNull: [{ $arrayElemAt: ["$subCatInfo.name", 0] }, "Uncategorized"] }
+          }
+        }
       ]);
-
-      const category = await Category.findById(categoryId);
-      distribution = subCatAgg.map(item => {
-        const sub = category.subCategories.find(s => s._id.toString() === item._id?.toString());
-        return {
-          _id: item._id,
-          name: sub ? sub.name : "Uncategorized",
-          color: category.color,
-          value: item.value
-        };
-      });
     } else {
       distribution = await Expense.aggregate([
         { $match: matchQuery },
@@ -97,16 +100,24 @@ export async function GET(req) {
           as: "catInfo"
         }
       },
-      { $unwind: "$catInfo" }
+      { $unwind: { path: "$catInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "_id.sub",
+          foreignField: "_id",
+          as: "subInfo"
+        }
+      },
+      { $unwind: { path: "$subInfo", preserveNullAndEmptyArrays: true } }
     ]);
 
     let topSubCategory = null;
     if (topSubCatAgg.length > 0) {
       const top = topSubCatAgg[0];
-      const sub = top.catInfo.subCategories.find(s => s._id.toString() === top._id.sub?.toString());
       topSubCategory = {
-        name: sub ? sub.name : "N/A",
-        parentCategory: top.catInfo.name,
+        name: top.subInfo?.name ?? "N/A",
+        parentCategory: top.catInfo?.name ?? "N/A",
         value: top.value
       };
     }

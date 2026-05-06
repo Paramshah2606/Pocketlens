@@ -71,15 +71,17 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Budgets</h1>
-          <p className="text-slate-500 mt-1">Set limits and track your spending goals.</p>
+    <div className="space-y-6 relative max-w-5xl mx-auto pb-10 px-3 sm:px-4">
+      <div className="flex items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate">Budgets</h1>
+          <p className="hidden sm:block text-slate-500 mt-1">Set limits and track your spending goals.</p>
+          <p className="sm:hidden text-slate-500 text-xs mt-0.5">Track your spending goals.</p>
         </div>
         {!isFormOpen && (
-          <Button onClick={() => setIsFormOpen(true)} className="rounded-full h-12 px-6 shadow-md shadow-blue-500/20">
-            <Plus className="mr-2 h-5 w-5" /> New Budget
+          <Button size="sm" onClick={() => setIsFormOpen(true)} className="rounded-full h-9 sm:h-12 px-4 sm:px-6 shadow-md shadow-blue-500/20 shrink-0">
+            <Plus className="mr-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> <span className="hidden sm:inline">New Budget</span>
+            <span className="sm:hidden">New</span>
           </Button>
         )}
       </div>
@@ -169,30 +171,30 @@ export default function BudgetsPage() {
               }
 
               return (
-                <Card key={budget._id} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all">
-                  <CardHeader className="flex flex-row items-center justify-between pb-4 pt-6 px-6">
-                    <div className="flex items-center gap-4">
+                <Card key={budget._id} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                  <CardHeader className="flex flex-row items-center justify-between pb-4 pt-5 sm:pt-6 px-5 sm:px-6">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                       <div 
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm"
+                        className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shadow-sm shrink-0"
                         style={{ backgroundColor: `${budget.categoryId?.color}15`, color: budget.categoryId?.color }}
                       >
-                        <span className="text-2xl">{budget.categoryId?.icon || "🏷️"}</span>
+                        <span className="text-xl sm:text-2xl">{budget.categoryId?.icon || "🏷️"}</span>
                       </div>
-                      <CardTitle className="text-xl font-bold text-slate-900">{budget.categoryId?.name}</CardTitle>
+                      <CardTitle className="text-lg sm:text-xl font-bold text-slate-900 truncate">{budget.categoryId?.name}</CardTitle>
                     </div>
-                    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 border text-xs font-bold ${statusBg}`}>
-                      <StatusIcon className="h-3.5 w-3.5" />
+                    <div className={`flex items-center gap-1.2 rounded-full px-2 sm:px-3 py-1 border text-[10px] sm:text-xs font-bold shrink-0 ${statusBg}`}>
+                      <StatusIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
                       {percent.toFixed(0)}%
                     </div>
                   </CardHeader>
-                  <CardContent className="px-6 pb-6 pt-0">
-                    <div className="mb-3 flex items-end justify-between">
+                  <CardContent className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0">
+                    <div className="mb-3 flex items-end justify-between gap-2">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                           {formatCurrency(budget.spent || 0)}
                         </span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-400 mb-1">
+                      <span className="text-[10px] sm:text-sm font-semibold text-slate-400 mb-1 whitespace-nowrap">
                         of {formatCurrency(budget.amount)}
                       </span>
                     </div>

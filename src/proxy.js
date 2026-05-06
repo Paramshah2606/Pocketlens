@@ -10,9 +10,10 @@ export async function proxy(req) {
 
   const publicPaths = ['/', '/login', '/signup', '/verify', '/forgot-password', '/reset-password'];
   const isAuthApi = pathname.startsWith('/api/auth');
+  const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';
 
   // Allow access to public paths and auth APIs without a token
-  if (publicPaths.includes(pathname) || isAuthApi) {
+  if (publicPaths.includes(pathname) || isAuthApi || isMigrateApi) {
     if (token && publicPaths.includes(pathname) && pathname !== '/') {
       // If user has a valid token and tries to access login/signup, redirect to dashboard
       try {

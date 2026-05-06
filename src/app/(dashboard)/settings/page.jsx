@@ -78,22 +78,24 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
-        <p className="text-slate-500 mt-1">Manage your account preferences and application settings.</p>
+    <div className="space-y-6 relative max-w-4xl mx-auto pb-10 px-3 sm:px-4">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
+        <p className="text-slate-500 mt-1 text-xs sm:text-sm">Manage your account preferences and settings.</p>
       </div>
 
       <div className="grid gap-6">
         {/* Profile Settings */}
         <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden bg-white text-slate-900">
           <div className="flex flex-col md:flex-row md:items-stretch">
-             <div className="bg-slate-50 border-b md:border-b-0 md:border-r border-slate-100 p-6 flex flex-col items-center justify-center text-center md:w-64 shrink-0">
-                <div className="h-16 w-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4 shadow-sm border border-blue-200">
-                  <User className="h-8 w-8" />
+             <div className="bg-slate-50 border-b md:border-b-0 md:border-r border-slate-100 p-6 flex flex-row md:flex-col items-center md:justify-center text-left md:text-center md:w-64 shrink-0 gap-4 md:gap-0">
+                <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center md:mb-4 shadow-sm border border-blue-200 shrink-0">
+                  <User className="h-6 w-6 sm:h-8 sm:w-8" />
                 </div>
-                <h3 className="font-bold text-slate-900">Profile Settings</h3>
-                <p className="text-xs text-slate-500 mt-1">Update your personal details</p>
+                <div>
+                  <h3 className="font-bold text-slate-900">Profile Settings</h3>
+                  <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">Update your personal details</p>
+                </div>
              </div>
              <CardContent className="p-6 md:p-8 flex-1">
                 <form onSubmit={handleSaveProfile} className="space-y-6">
@@ -126,8 +128,8 @@ export default function SettingsPage() {
         </Card>
 
         {/* Logout Section */}
-        <div className="pt-4 flex justify-center md:justify-start">
-          <Button onClick={handleLogout} variant="destructive" className="rounded-full shadow-sm px-8">
+        <div className="pt-2 flex justify-center md:justify-start">
+          <Button onClick={handleLogout} variant="destructive" className="rounded-full shadow-sm px-8 w-full md:w-auto h-11 sm:h-12">
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>

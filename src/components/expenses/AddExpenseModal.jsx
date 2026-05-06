@@ -45,7 +45,7 @@ export default function AddExpenseModal() {
       if (editingExpense) {
         setValue("amount", editingExpense.amount)
         setValue("categoryId", editingExpense.categoryId._id || editingExpense.categoryId)
-        setValue("subCategoryId", editingExpense.subCategoryId)
+        setValue("subCategoryId", editingExpense.subCategoryId?._id || editingExpense.subCategoryId || null)
         setValue("description", editingExpense.description || "")
         setValue("date", new Date(editingExpense.date).toISOString().split('T')[0])
       } else {
@@ -62,12 +62,11 @@ export default function AddExpenseModal() {
   }, [isAddExpenseModalOpen, editingExpense, setValue, reset])
 
   useEffect(() => {
-    if (categories.length > 0 && editingExpense) {
-      const catId = editingExpense.categoryId._id || editingExpense.categoryId
-      const cat = categories.find(c => c._id === catId)
+    if (categories.length > 0 && watchCategoryId) {
+      const cat = categories.find(c => c._id === watchCategoryId)
       if (cat) setSelectedCategory(cat)
     }
-  }, [categories, editingExpense])
+  }, [categories, watchCategoryId])
 
   const fetchCategories = async () => {
     try {
@@ -144,19 +143,19 @@ export default function AddExpenseModal() {
     setIsSubmittingSub(true)
     try {
       const res = await fetch("/api/categories", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          categoryId: selectedCategory._id, 
-          newSubCategory: { name: newSubName, icon: newSubIcon } 
+        body: JSON.stringify({
+          name: newSubName,
+          icon: newSubIcon,
+          parentCategoryId: selectedCategory._id
         })
       })
-      if(res.ok) {
+      if (res.ok) {
         const data = await res.json()
         await fetchCategories()
-        setSelectedCategory(data.category) // Update local selected category to the new cloned one
-        setValue("categoryId", data.category._id)
-        setValue("subCategoryId", data.category.subCategories[data.category.subCategories.length - 1]._id)
+        // categoryId stays the same — no cloning; selectedCategory re-syncs via useEffect
+        setValue("subCategoryId", data.category._id)
         setIsCreatingSub(false)
         setNewSubName("")
         setNewSubIcon("✨")

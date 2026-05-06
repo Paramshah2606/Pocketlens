@@ -77,7 +77,8 @@ export async function GET(req) {
     const totalPages = Math.ceil(total / limit);
 
     const expenses = await Expense.find(query)
-      .populate('categoryId', 'name icon color subCategories')
+      .populate('categoryId', 'name icon color')
+      .populate('subCategoryId', 'name icon')
       .sort(sort)
       .skip(skip)
       .limit(limit);

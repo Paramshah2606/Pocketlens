@@ -140,22 +140,22 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-10">
       {/* Header */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Overview</h1>
-          <p className="text-slate-500 mt-1">Here's a summary of your financial activity {getTimeRangeLabel().toLowerCase()}.</p>
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate">Overview</h1>
+          <p className="text-slate-500 mt-1 text-xs sm:text-sm truncate">Financial activity {getTimeRangeLabel().toLowerCase()}.</p>
         </div>
-        <div className="relative inline-block group">
+        <div className="relative shrink-0">
           <select 
-            className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold rounded-2xl focus:ring-blue-500 focus:border-blue-500 block w-40 p-3.5 pr-10 cursor-pointer transition-all hover:bg-slate-100"
+            className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-semibold rounded-2xl focus:ring-blue-500 focus:border-blue-500 block w-28 sm:w-40 p-2.5 sm:p-3.5 pr-8 sm:pr-10 cursor-pointer transition-all hover:bg-slate-100"
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
           >
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="year">This Year</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+            <option value="year">Year</option>
           </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
@@ -368,22 +368,24 @@ export default function DashboardPage() {
               </div>
             ) : (
               data?.topExpenses?.map(expense => (
-                <div key={expense._id} className="flex items-center group transition-all hover:translate-x-1">
-                  <div 
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm"
-                    style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
-                  >
-                    <span className="text-xl">{expense.categoryId.icon || "🏷️"}</span>
+                <div key={expense._id} className="flex flex-col sm:flex-row sm:items-center group transition-all hover:translate-x-1 gap-3 sm:gap-0">
+                  <div className="flex items-center flex-1">
+                    <div 
+                      className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shadow-sm shrink-0"
+                      style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
+                    >
+                      <span className="text-lg sm:text-xl">{expense.categoryId.icon || "🏷️"}</span>
+                    </div>
+                    <div className="ml-4 space-y-0.5 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{expense.categoryId.name}</p>
+                      <p className="text-xs text-slate-400 font-medium truncate">{expense.description || "No description"}</p>
+                    </div>
                   </div>
-                  <div className="ml-4 space-y-0.5">
-                    <p className="text-sm font-bold text-slate-900">{expense.categoryId.name}</p>
-                    <p className="text-xs text-slate-400 font-medium">{expense.description || "No description"}</p>
-                  </div>
-                  <div className="ml-auto flex items-center gap-6">
+                  <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 pl-15 sm:pl-0">
                     <div className="font-bold text-slate-900">
                       {formatCurrency(expense.amount)}
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
                       <button 
                         onClick={() => handleEdit(expense)}
                         className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"

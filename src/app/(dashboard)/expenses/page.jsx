@@ -111,22 +111,24 @@ export default function ExpensesPage() {
   const selectedCategory = categories.find(c => c._id === filters.categoryId)
 
   return (
-    <div className="space-y-6 relative max-w-5xl mx-auto pb-10 px-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Expenses</h1>
-          <p className="text-slate-500 mt-1">Track and manage your daily spending.</p>
+    <div className="space-y-6 relative max-w-5xl mx-auto pb-10 px-3 sm:px-4">
+      <div className="flex items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 truncate">Expenses</h1>
+          <p className="hidden sm:block text-slate-500 mt-1">Track and manage your daily spending.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Button 
             variant="outline" 
+            size="sm"
             onClick={() => setIsFilterVisible(!isFilterVisible)}
-            className={`rounded-full h-11 px-5 border-slate-200 transition-all ${isFilterVisible ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
+            className={`rounded-full h-9 sm:h-11 px-3 sm:px-5 border-slate-200 transition-all ${isFilterVisible ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
           >
-            <Filter className="mr-2 h-4 w-4" /> Filters
+            <Filter className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
           </Button>
-          <Button onClick={() => dispatch(openAddExpenseModal())} className="rounded-full h-11 px-6 shadow-md shadow-blue-500/20">
-            <Plus className="mr-2 h-5 w-5" /> Add Expense
+          <Button size="sm" onClick={() => dispatch(openAddExpenseModal())} className="rounded-full h-9 sm:h-11 px-3 sm:px-6 shadow-md shadow-blue-500/20">
+            <Plus className="mr-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> <span className="hidden sm:inline">Add Expense</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
@@ -290,55 +292,57 @@ export default function ExpensesPage() {
           ) : (
             <>
               {expenses.map((expense) => {
-                const subCategory = expense.categoryId.subCategories?.find(sc => sc._id === expense.subCategoryId)
+                const subCategory = expense.subCategoryId
                 
                 return (
-                  <Card key={expense._id} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
-                    <CardContent className="p-5 sm:p-6 flex items-center justify-between">
-                      <div className="flex items-center gap-5">
-                        <div 
-                          className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm"
-                          style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
-                        >
-                          <span className="text-2xl">{expense.categoryId.icon || "🏷️"}</span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-slate-900 text-lg">{expense.categoryId.name}</h3>
-                            {subCategory && (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                                {subCategory.name}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-slate-500">{expense.description || "No description"}</p>
-                          <div className="flex items-center text-xs font-medium text-slate-400 mt-1.5">
-                            <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                            {formatDate(expense.date)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <span className="text-xl font-bold text-slate-900">{formatCurrency(expense.amount)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                            onClick={() => handleEdit(expense)}
+                  <Card key={expense._id} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 overflow-hidden">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+                          <div 
+                            className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl shadow-sm shrink-0"
+                            style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
                           >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            onClick={() => handleDelete(expense._id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            <span className="text-xl sm:text-2xl">{expense.categoryId.icon || "🏷️"}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{expense.categoryId.name}</h3>
+                              {subCategory && (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                  {subCategory.name}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-500 truncate">{expense.description || "No description"}</p>
+                            <div className="flex items-center text-[10px] sm:text-xs font-medium text-slate-400 mt-1">
+                              <Calendar className="mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              {formatDate(expense.date)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-50">
+                          <div className="text-left sm:text-right">
+                            <span className="text-lg sm:text-xl font-bold text-slate-900">{formatCurrency(expense.amount)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 sm:h-9 sm:w-9 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                              onClick={() => handleEdit(expense)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 sm:h-9 sm:w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                              onClick={() => handleDelete(expense._id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
