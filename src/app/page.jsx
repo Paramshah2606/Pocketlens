@@ -6,8 +6,19 @@ import { Logo } from "@/components/ui/Logo"
 import { MockChart } from "@/components/ui/MockChart"
 
 export const metadata = {
-  title: "PocketLens | Smart Expense Tracking for Modern Lives",
-  description: "Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.",
+  title: 'PocketLens | Smart Expense Tracking for Modern Lives',
+  description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+  openGraph: {
+    title: 'PocketLens | Smart Expense Tracking for Modern Lives',
+    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+    url: '/',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PocketLens | Smart Expense Tracking for Modern Lives',
+    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for young professionals and students.',
+  },
 }
 
 export default function LandingPage() {

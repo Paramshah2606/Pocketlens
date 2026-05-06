@@ -9,10 +9,25 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "PocketLens",
-  description: "Smart Expense Tracking",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketlens.app'),
+  title: {
+    default: 'PocketLens — Smart Expense Tracking',
+    template: '%s | PocketLens',
+  },
+  description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly. PocketLens is the mobile-first expense tracker built for modern lives.',
+  openGraph: {
+    type: 'website',
+    siteName: 'PocketLens',
+    title: 'PocketLens — Smart Expense Tracking',
+    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PocketLens — Smart Expense Tracking',
+    description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly.',
+  },
   verification: {
-    google: "MLpCV1yUFupl8FE9jxjOT6RoBJhIoWNApQZep2_OMBY",
+    google: 'MLpCV1yUFupl8FE9jxjOT6RoBJhIoWNApQZep2_OMBY',
   },
 };
 
