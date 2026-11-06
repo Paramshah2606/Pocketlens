@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Loader2, Calendar, Receipt, Edit2, Trash2, Filter, ArrowUpDown, Search, ChevronDown, Tag, Layers, Download } from "lucide-react"
+import { Plus, Loader2, Calendar, Receipt, Edit2, Trash2, Filter, ArrowUpDown, Search, ChevronDown, Tag, Layers, Download, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,6 +35,23 @@ function filtersFromUrl(params) {
   return preset
 }
 
+const DATE_LABELS = { today: 'Today', thisWeek: 'This week', thisMonth: 'This month', thisYear: 'This year' }
+const dayFmt = (key, withYear) => new Intl.DateTimeFormat('en-IN', {
+  day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC',
+}).format(new Date(`${key}T00:00:00Z`))
+
+// "1 Nov – 30 Nov 2026", "5 Nov 2026", "This month"… or null for "all time"
+function describeDateFilter({ dateType, startDate, endDate }) {
+  if (DATE_LABELS[dateType]) return DATE_LABELS[dateType]
+  if (dateType === 'single' && startDate) return dayFmt(startDate, true)
+  if (dateType === 'range' && startDate && endDate) {
+    const [from, to] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate]
+    if (from === to) return dayFmt(from, true)
+    return `${dayFmt(from, from.slice(0, 4) !== to.slice(0, 4))} – ${dayFmt(to, true)}`
+  }
+  return null
+}
+
 // useSearchParams needs a Suspense boundary so the page can still be prerendered
 export default function ExpensesPage() {
   return (
@@ -54,9 +71,9 @@ function ExpensesView({ searchParams }) {
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  // Arriving from a link with filters: apply them and show the panel so it's clear why
+  // Arriving from a link with filters: apply them (shown as chips, panel stays closed)
   const [urlFilters] = useState(() => filtersFromUrl(searchParams))
-  const [isFilterVisible, setIsFilterVisible] = useState(() => Object.keys(urlFilters).length > 0)
+  const [isFilterVisible, setIsFilterVisible] = useState(false)
   const [totalAmount, setTotalAmount] = useState(0)
   
   const [pagination, setPagination] = useState({
@@ -146,6 +163,40 @@ function ExpensesView({ searchParams }) {
   }
 
   const selectedCategory = categories.find(c => c._id === filters.categoryId)
+  const selectedSub = selectedCategory?.subCategories?.find(sub => sub._id === filters.subCategoryId)
+
+  // Applied filters, shown as removable chips so the list's scope is clear without the panel
+  const appliedFilters = []
+  const dateChip = describeDateFilter(filters)
+  if (dateChip) {
+    appliedFilters.push({ key: 'date', icon: Calendar, label: dateChip, clear: () => setFilters(prev => ({ ...prev, dateType: 'all', startDate: '', endDate: '', page: 1 })) })
+  }
+  if (filters.categoryId !== 'all') {
+    appliedFilters.push({
+      key: 'category',
+      emoji: selectedCategory?.icon,
+      label: selectedCategory?.name || 'Category',
+      clear: () => handleFilterChange('categoryId', 'all'),
+    })
+  }
+  if (filters.subCategoryId !== 'all') {
+    appliedFilters.push({
+      key: 'sub',
+      emoji: selectedSub?.icon,
+      label: selectedSub?.name || 'Sub-category',
+      clear: () => handleFilterChange('subCategoryId', 'all'),
+    })
+  }
+  const clearAllFilters = () => setFilters({
+    dateType: 'all',
+    startDate: '',
+    endDate: '',
+    categoryId: 'all',
+    subCategoryId: 'all',
+    sortBy: 'date',
+    sortOrder: 'desc',
+    page: 1
+  })
 
   return (
     <div className="space-y-6 relative max-w-5xl mx-auto pb-10 px-3 sm:px-4">
@@ -173,6 +224,11 @@ function ExpensesView({ searchParams }) {
             className={`rounded-full h-9 sm:h-11 px-3 sm:px-5 border-slate-200 transition-all ${isFilterVisible ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
           >
             <Filter className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
+            {appliedFilters.length > 0 && (
+              <span className="ml-1 sm:ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-bold text-white">
+                {appliedFilters.length}
+              </span>
+            )}
           </Button>
           <Button size="sm" onClick={() => openAdd()} className="rounded-full h-9 sm:h-11 px-3 sm:px-6 shadow-md shadow-blue-500/20">
             <Plus className="mr-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> <span className="hidden sm:inline">Add Expense</span>
@@ -180,6 +236,32 @@ function ExpensesView({ searchParams }) {
           </Button>
         </div>
       </div>
+
+      {appliedFilters.length > 0 && !isFilterVisible && (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1" aria-label="Applied filters">
+          {appliedFilters.map(({ key, icon: Icon, emoji, label, clear }) => (
+            <span key={key} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 py-1.5 pl-3 pr-1.5 text-sm font-semibold text-blue-700">
+              {Icon ? <Icon className="h-3.5 w-3.5" /> : emoji ? <span className="leading-none">{emoji}</span> : null}
+              <span className="max-w-[12rem] truncate">{label}</span>
+              <button
+                type="button"
+                onClick={clear}
+                aria-label={`Remove ${label} filter`}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {isFilterVisible && (
         <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden bg-white animate-in fade-in slide-in-from-top-4 duration-300">
@@ -300,16 +382,7 @@ function ExpensesView({ searchParams }) {
                 variant="ghost" 
                 size="sm" 
                 className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full font-medium"
-                onClick={() => setFilters({
-                  dateType: 'all',
-                  startDate: '',
-                  endDate: '',
-                  categoryId: 'all',
-                  subCategoryId: 'all',
-                  sortBy: 'date',
-                  sortOrder: 'desc',
-                  page: 1
-                })}
+                onClick={clearAllFilters}
               >
                 Clear all filters
               </Button>
@@ -349,65 +422,81 @@ function ExpensesView({ searchParams }) {
             </div>
           ) : (
             <>
-              {expenses.map((expense) => {
-                const subCategory = expense.subCategoryId
-                
-                return (
-                  <Card key={expense._id} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 overflow-hidden">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 sm:gap-5 min-w-0">
-                          <div 
-                            className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl shadow-sm shrink-0"
-                            style={{ backgroundColor: `${expense.categoryId?.color || "#64748b"}15`, color: expense.categoryId?.color }}
-                          >
-                            <span className="text-xl sm:text-2xl">{expense.categoryId?.icon || "🏷️"}</span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{expense.categoryId?.name || "Uncategorized"}</h3>
-                              {subCategory && (
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
-                                  {subCategory.name}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-500 truncate">{expense.description || "No description"}</p>
-                            <div className="flex items-center text-[10px] sm:text-xs font-medium text-slate-400 mt-1">
-                              <Calendar className="mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                              {formatDate(expense.date)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-50">
-                          <div className="text-left sm:text-right">
-                            <span className="text-lg sm:text-xl font-bold text-slate-900">{formatCurrency(expense.amount)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 sm:h-9 sm:w-9 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                              onClick={() => handleEdit(expense)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 sm:h-9 sm:w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                              onClick={() => requestDelete("expense", expense)}
-                              aria-label="Delete expense"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
+              <ul className="space-y-2">
+                {expenses.map((expense) => {
+                  const category = expense.categoryId
+                  const subCategory = expense.subCategoryId
+                  const color = category?.color || "#64748b"
+                  const actions = (
+                    <div className="-mr-1.5 flex shrink-0 items-center">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(expense)}
+                        aria-label="Edit expense"
+                        className="-my-1 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requestDelete("expense", expense)}
+                        aria-label="Delete expense"
+                        className="-my-1 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )
+
+                  return (
+                    <li
+                      key={expense._id}
+                      className="group flex items-start gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <div
+                        className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl text-lg sm:text-xl"
+                        style={{ backgroundColor: `${color}1a` }}
+                      >
+                        {category?.icon || "🏷️"}
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+
+                      <div className="min-w-0 flex-1">
+                        {/* Line 1: what + how much */}
+                        <div className="flex items-center gap-2">
+                          <h3 className="truncate text-[15px] font-semibold text-slate-900">{category?.name || "Uncategorized"}</h3>
+                          {subCategory && (
+                            <span className="max-w-[40%] shrink-0 truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                              {subCategory.name}
+                            </span>
+                          )}
+                          <span className="ml-auto shrink-0 pl-2 text-[15px] sm:text-base font-bold tabular-nums text-slate-900">
+                            {formatCurrency(expense.amount)}
+                          </span>
+                        </div>
+
+                        {/* Line 2: when. The actions sit on the card's last line: here, or beside the note */}
+                        {expense.description ? (
+                          <>
+                            <p className="mt-0.5 truncate text-xs text-slate-400">{formatDate(expense.date)}</p>
+                            {/* The note in full: it wraps instead of being cut off */}
+                            <div className="mt-1 flex items-end gap-2">
+                              <p className="min-w-0 flex-1 whitespace-pre-line break-words text-[13px] leading-snug text-slate-600">
+                                {expense.description}
+                              </p>
+                              {actions}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <p className="min-w-0 flex-1 truncate text-xs text-slate-400">{formatDate(expense.date)}</p>
+                            {actions}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
 
               {/* Pagination Controls */}
               {pagination.totalPages > 1 && (

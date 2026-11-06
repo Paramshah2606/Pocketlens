@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Legend,
@@ -13,6 +13,18 @@ import { formatCurrency } from "@/lib/utils"
 import { shade } from "@/lib/colorShades"
 
 // ---------------------------------------------------------------- shared pieces
+
+// Tooltips only where there's a real hover (mouse / trackpad). On touch screens a tap would
+// leave a tooltip stuck over the chart, so phones get the numbers from the lists instead.
+const HOVER_QUERY = "(hover: hover) and (pointer: fine)"
+function subscribeHover(onChange) {
+  const mq = window.matchMedia(HOVER_QUERY)
+  mq.addEventListener("change", onChange)
+  return () => mq.removeEventListener("change", onChange)
+}
+function useCanHover() {
+  return useSyncExternalStore(subscribeHover, () => window.matchMedia(HOVER_QUERY).matches, () => false)
+}
 
 const INCOME = "#10b981" // emerald-500, the app's income colour
 const SPENT = "#3b82f6" // blue-500, the app's spending colour
@@ -74,12 +86,69 @@ function ChartBox({ children, className = "" }) {
   )
 }
 
-function Empty({ children = "Nothing recorded for this period yet." }) {
+// Shown instead of an empty chart: the same chart with made-up numbers, clearly marked as
+// a sample (banner + watermark) and not interactive, so people see what they'll get.
+function SamplePreview({ hint, children }) {
   return (
-    <div className="flex h-[40vh] min-h-[220px] items-center justify-center text-center">
-      <p className="text-sm font-medium text-slate-400">{children}</p>
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3">
+        <span className="mt-0.5 shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Sample</span>
+        <p className="text-sm text-amber-900">
+          <span className="font-bold">This is a dummy chart, not your data.</span> {hint}
+        </p>
+      </div>
+      <div inert className="relative select-none opacity-60 saturate-[.8]" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-x-0 top-[28%] z-10 flex justify-center">
+          <span className="-rotate-12 rounded-2xl border-[3px] border-amber-400/80 bg-white/60 px-5 py-1.5 text-2xl sm:text-3xl font-black uppercase tracking-[0.3em] text-amber-500">
+            Sample
+          </span>
+        </div>
+        {children}
+      </div>
     </div>
   )
+}
+
+const SAMPLE_CATEGORIES = [
+  { _id: "s1", name: "Rent", icon: "🏠", color: "#3b82f6", value: 15000, count: 1 },
+  { _id: "s2", name: "Food", icon: "🍔", color: "#f97316", value: 8200, count: 23 },
+  { _id: "s3", name: "Travel", icon: "🚕", color: "#10b981", value: 4300, count: 11 },
+  { _id: "s4", name: "Shopping", icon: "🛍️", color: "#ec4899", value: 3600, count: 4 },
+  { _id: "s5", name: "Bills", icon: "💡", color: "#8b5cf6", value: 2400, count: 3 },
+]
+const SAMPLE_SUBS = [
+  ["s1", "Rent", "#3b82f6", [["House rent", "🏠", 15000]]],
+  ["s2", "Food", "#f97316", [["Groceries", "🛒", 3900], ["Dining out", "🍽️", 2800], ["Snacks", "🍿", 1500]]],
+  ["s3", "Travel", "#10b981", [["Cab", "🚕", 2600], ["Fuel", "⛽", 1700]]],
+  ["s4", "Shopping", "#ec4899", [["Clothes", "👕", 2400], ["Gadgets", "🎧", 1200]]],
+]
+// A gentle made-up wave so sample lines and bars look like real spending
+const wave = (i) => Math.round(600 + 450 * Math.abs(Math.sin(i * 1.7)) + (i % 7 === 5 ? 900 : 0))
+
+const sampleData = {
+  balance: (data) => ({ ...data, series: [{ key: "sample", income: 50000, spent: 33500 }] }),
+  category: (data) => ({ ...data, items: SAMPLE_CATEGORIES }),
+  subcategory: (data) => ({
+    ...data,
+    items: SAMPLE_SUBS.flatMap(([categoryId, categoryName, categoryColor, subs]) =>
+      subs.map(([name, icon, value], i) => ({
+        categoryId, categoryName, categoryColor, color: categoryColor, subCategoryId: `${categoryId}-${i}`, name, icon, value, count: 3,
+      }))
+    ),
+  }),
+  trend: (data) => ({ ...data, series: data.series.map((p, i) => ({ ...p, amount: wave(i) })) }),
+  monthly: (data) => ({
+    ...data,
+    series: data.series.map((p, i) => ({ ...p, income: 50000 + (i % 4 === 3 ? 6000 : 0), spent: 30000 + ((i * 7919) % 15000) })),
+  }),
+  budget: () => ({
+    budgets: [
+      { _id: "b1", amount: 10000, spent: 8200, categoryId: { name: "Food", icon: "🍔", color: "#f97316" } },
+      { _id: "b2", amount: 5000, spent: 5900, categoryId: { name: "Shopping", icon: "🛍️", color: "#ec4899" } },
+      { _id: "b3", amount: 6000, spent: 2700, categoryId: { name: "Travel", icon: "🚕", color: "#10b981" } },
+    ],
+  }),
+  weekday: (data) => ({ ...data, series: data.series.map((p, i) => ({ ...p, amount: [1800, 1500, 2100, 1700, 2600, 4200, 3500][i], count: 4 })) }),
 }
 
 function Stat({ label, value, tone = "text-slate-900", dot }) {
@@ -98,102 +167,155 @@ const legendText = (value) => <span className="text-sm font-semibold text-slate-
 
 // ---------------------------------------------------------------- Income vs Spent
 
-export function BalanceChart({ data }) {
-  const { totals, cumulative } = useMemo(() => {
-    const cumulative = []
-    const totals = { income: 0, spent: 0 }
-    for (const p of data.series) {
-      totals.income += p.income
-      totals.spent += p.spent
-      cumulative.push({ key: p.key, Income: totals.income, Spent: totals.spent })
-    }
-    return { totals, cumulative }
-  }, [data])
+export function BalanceChart({ data, sample = false }) {
+  const totals = data.series.reduce((t, p) => ({ income: t.income + p.income, spent: t.spent + p.spent }), { income: 0, spent: 0 })
+
+  if (!sample && totals.income === 0 && totals.spent === 0) {
+    return (
+      <SamplePreview hint="Add your salary or other income and your expenses to see how much of it you have spent and how much is left.">
+        <BalanceChart data={sampleData.balance(data)} sample />
+      </SamplePreview>
+    )
+  }
 
   const balance = totals.income - totals.spent
+  const over = balance < 0
   const usedPct = totals.income > 0 ? Math.round((totals.spent / totals.income) * 100) : null
-  const fmtKey = (k) => (data.byMonth ? monthLabel(k) : dayLabel(k))
+
+  // The full circle is your income: spent + what's left. When spending passes income, the
+  // circle becomes everything spent: the part income covered + the overspend in red.
+  const slices = !over
+    ? [
+        { name: "Spent", value: totals.spent, fill: SPENT },
+        { name: "Left", value: balance, fill: INCOME },
+      ]
+    : [
+        { name: "Covered by income", value: totals.income, fill: SPENT },
+        { name: "Over income", value: -balance, fill: "#ef4444" },
+      ]
+  const items = slices.filter((x) => x.value > 0)
+  const whole = items.reduce((t, x) => t + x.value, 0)
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="Income" value={formatCurrency(totals.income)} tone="text-emerald-600" dot={INCOME} />
         <Stat label="Spent" value={formatCurrency(totals.spent)} dot={SPENT} />
-        <Stat label="Balance" value={formatCurrency(balance)} tone={balance >= 0 ? "text-slate-900" : "text-red-600"} />
+        <Stat label={over ? "Over" : "Left"} value={formatCurrency(Math.abs(balance))} tone={over ? "text-red-600" : "text-slate-900"} />
       </div>
 
-      {usedPct !== null && (
-        <div>
-          <div className="flex justify-between text-xs font-semibold text-slate-500 mb-1.5">
-            <span>Spent {usedPct}% of income</span>
-            <span>{balance >= 0 ? `${100 - usedPct}% left` : `${usedPct - 100}% over`}</span>
-          </div>
-          <div className="h-2.5 rounded-full bg-emerald-100 overflow-hidden">
-            <div
-              className={`h-full rounded-full ${usedPct > 100 ? "bg-red-500" : "bg-blue-500"}`}
-              style={{ width: `${Math.min(usedPct, 100)}%` }}
-            />
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-center">
+        <Donut
+          items={items}
+          total={whole}
+          labels
+          center={
+            <>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{over ? "Over by" : "Left"}</span>
+              <span className={`text-lg sm:text-2xl font-bold ${over ? "text-red-600" : "text-slate-900"}`}>{formatCurrency(Math.abs(balance))}</span>
+            </>
+          }
+          tooltipExtra={(p) => totals.income > 0 ? `${Math.round((p.value / totals.income) * 100)}% of income` : "No income recorded"}
+        />
+        <div className="space-y-4">
+          {usedPct !== null ? (
+            <p className="text-sm text-slate-600">
+              You have spent <span className="font-bold text-slate-900">{usedPct}%</span> of your income
+              {over ? (
+                <> — <span className="font-bold text-red-600">{formatCurrency(-balance)} more</span> than you earned.</>
+              ) : (
+                <> and saved <span className="font-bold text-emerald-600">{100 - usedPct}%</span>.</>
+              )}
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600">No income recorded for this period, so everything spent is shown as over income.</p>
+          )}
+          <div className="space-y-2">
+            {items.map((x) => (
+              <div key={x.name} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
+                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: x.fill }} />
+                <span className="flex-1 text-sm font-semibold text-slate-700">{x.name}</span>
+                <span className="text-sm font-bold text-slate-900">{formatCurrency(x.value)}</span>
+                <span className="w-10 text-right text-xs font-semibold text-slate-500">{Math.round((x.value / whole) * 100)}%</span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
-
-      {totals.income === 0 && totals.spent === 0 ? (
-        <Empty />
-      ) : (
-        <div>
-          <p className="text-sm font-semibold text-slate-700">Running total</p>
-          <p className="text-xs text-slate-400 mb-3">Income received vs money spent so far, {data.byMonth ? "month by month" : "day by day"}.</p>
-          <ChartBox>
-            <LineChart data={cumulative} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={GRID} />
-              <XAxis dataKey="key" tickFormatter={fmtKey} tick={TICK} tickLine={false} axisLine={false} minTickGap={24} dy={6} />
-              <YAxis tickFormatter={compactRupees} tick={TICK} tickLine={false} axisLine={false} width={56} />
-              <Tooltip content={<ChartTooltip labelFormatter={fmtKey} />} />
-              <Legend verticalAlign="top" align="right" height={32} iconType="circle" iconSize={8} formatter={legendText} />
-              <Line type="monotone" dataKey="Income" stroke={INCOME} strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
-              <Line type="monotone" dataKey="Spent" stroke={SPENT} strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
-            </LineChart>
-          </ChartBox>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------- donut + legend list
 
-function Donut({ items, total, onSelect }) {
+const MIN_LABEL_SHARE = 0.04 // smaller slices skip the outside label (still in the list below)
+const shortName = (name) => (name.length > 12 ? `${name.slice(0, 11)}…` : name)
+
+// Name + % outside the slice, joined to it by a short line in the slice's colour
+function sliceLabel(total) {
+  return function SliceLabel({ x, y, textAnchor, value, name, payload }) {
+    if (!total || value / total < MIN_LABEL_SHARE) return null
+    return (
+      <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" className="pointer-events-none">
+        <tspan x={x} dy="-0.45em" fontSize={11} fontWeight={700} fill="#334155">{shortName(name ?? payload?.name ?? "")}</tspan>
+        <tspan x={x} dy="1.25em" fontSize={10} fontWeight={600} fill="#94a3b8">{Math.round((value / total) * 100)}%</tspan>
+      </text>
+    )
+  }
+}
+function sliceLine(total) {
+  return function SliceLine({ points, value, stroke, payload }) {
+    if (!total || value / total < MIN_LABEL_SHARE || !points?.length) return null
+    const [a, b] = points
+    return <path d={`M${a.x},${a.y}L${b.x},${b.y}`} stroke={payload?.fill || stroke} strokeWidth={1.5} fill="none" />
+  }
+}
+
+function Donut({ items, total, onSelect, labels = false, center, tooltipExtra }) {
+  const canHover = useCanHover()
   return (
-    <div className="relative w-full min-w-0 h-[42vh] min-h-[260px] max-h-[380px]">
+    <div className={`relative w-full min-w-0 ${labels ? "h-[300px] sm:h-[360px]" : "h-[42vh] min-h-[260px] max-h-[380px]"}`}>
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+        <PieChart margin={labels ? { top: 16, right: 8, bottom: 16, left: 8 } : undefined}>
           <Pie
             data={items}
             dataKey="value"
             nameKey="name"
-            innerRadius="58%"
-            outerRadius="88%"
+            innerRadius={labels ? "44%" : "58%"}
+            outerRadius={labels ? "66%" : "88%"}
             paddingAngle={items.length > 1 ? 1.5 : 0}
             stroke="#fff"
             strokeWidth={2}
+            label={labels ? sliceLabel(total) : false}
+            labelLine={labels ? sliceLine(total) : false}
             onClick={(entry) => onSelect?.(entry.payload ?? entry)}
-            className="cursor-pointer outline-none"
-            isAnimationActive
+            className={`${onSelect ? "cursor-pointer" : ""} outline-none`}
+            // Recharts only draws pie labels after its entry animation reports finishing,
+            // which doesn't always happen; labelled pies skip the animation so labels always show
+            isAnimationActive={!labels}
           >
             {items.map((item, i) => (
               <Cell key={i} fill={item.fill} className="outline-none" />
             ))}
           </Pie>
-          <Tooltip
-            content={
-              <ChartTooltip extra={(p) => `${Math.round((p.value / total) * 100)}% of spending · ${p.count} ${p.count === 1 ? "entry" : "entries"}`} />
-            }
-          />
+          {canHover && (
+            <Tooltip
+              content={
+                <ChartTooltip
+                  extra={tooltipExtra || ((p) => `${Math.round((p.value / total) * 100)}% of spending · ${p.count} ${p.count === 1 ? "entry" : "entries"}`)}
+                />
+              }
+            />
+          )}
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total</span>
-        <span className="text-xl sm:text-2xl font-bold text-slate-900">{formatCurrency(total)}</span>
+        {center || (
+          <>
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total</span>
+            <span className={`${labels ? "text-base sm:text-xl" : "text-xl sm:text-2xl"} font-bold text-slate-900`}>{formatCurrency(total)}</span>
+          </>
+        )}
       </div>
     </div>
   )
@@ -227,16 +349,22 @@ function LegendRow({ href, color, icon, name, sub, value, total }) {
 
 // ---------------------------------------------------------------- Categories
 
-export function CategoryChart({ data }) {
+export function CategoryChart({ data, sample = false }) {
   const router = useRouter()
   const items = data.items.map((c) => ({ ...c, fill: c.color || SPENT }))
   const total = items.reduce((s, c) => s + c.value, 0)
-  if (!items.length) return <Empty />
+  if (!items.length && !sample) {
+    return (
+      <SamplePreview hint="Add expenses to see how your spending splits across your categories, in the colours you picked for them.">
+        <CategoryChart data={sampleData.category(data)} sample />
+      </SamplePreview>
+    )
+  }
 
   const hrefFor = (c) => expensesHref({ ...data, categoryId: c._id })
   return (
     <div className="grid gap-6 lg:grid-cols-2 lg:items-center">
-      <Donut items={items} total={total} onSelect={(c) => c?._id && router.push(hrefFor(c))} />
+      <Donut items={items} total={total} labels onSelect={(c) => c?._id && router.push(hrefFor(c))} />
       <div className="space-y-0.5">
         {items.map((c) => (
           <LegendRow key={c._id} href={hrefFor(c)} color={c.fill} icon={c.icon} name={c.name} value={c.value} total={total} />
@@ -248,7 +376,7 @@ export function CategoryChart({ data }) {
 
 // ---------------------------------------------------------------- Sub-categories
 
-export function SubCategoryChart({ data }) {
+export function SubCategoryChart({ data, sample = false }) {
   const router = useRouter()
   const [filter, setFilter] = useState(null) // categoryId or null = all
 
@@ -274,7 +402,13 @@ export function SubCategoryChart({ data }) {
       }))
   }, [data])
 
-  if (!groups.length) return <Empty />
+  if (!groups.length && !sample) {
+    return (
+      <SamplePreview hint="Add expenses with sub-categories to see the breakdown inside each category, shaded in its colour.">
+        <SubCategoryChart data={sampleData.subcategory(data)} sample />
+      </SamplePreview>
+    )
+  }
 
   const visible = filter ? groups.filter((g) => g.categoryId === filter) : groups
   const items = visible.flatMap((g) => g.items)
@@ -305,7 +439,7 @@ export function SubCategoryChart({ data }) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Donut items={items} total={total} onSelect={(s) => s?.categoryId && router.push(hrefFor(s))} />
+        <Donut items={items} total={total} labels onSelect={(s) => s?.categoryId && router.push(hrefFor(s))} />
         <div className="space-y-4">
           {visible.map((g) => (
             <div key={g.categoryId}>
@@ -337,9 +471,16 @@ export function SubCategoryChart({ data }) {
 
 // ---------------------------------------------------------------- Daily trend
 
-export function TrendChart({ data }) {
+export function TrendChart({ data, sample = false }) {
+  const canHover = useCanHover()
   const total = data.series.reduce((s, p) => s + p.amount, 0)
-  if (!total) return <Empty />
+  if (!total && !sample) {
+    return (
+      <SamplePreview hint="Add expenses to see your spending day by day, your daily average and your biggest day.">
+        <TrendChart data={sampleData.trend(data)} sample />
+      </SamplePreview>
+    )
+  }
   const days = data.series.length
   const peak = data.series.reduce((a, b) => (b.amount > a.amount ? b : a))
   const yearView = data.timeRange === "year"
@@ -366,7 +507,7 @@ export function TrendChart({ data }) {
             dy={6}
           />
           <YAxis tickFormatter={compactRupees} tick={TICK} tickLine={false} axisLine={false} width={56} />
-          <Tooltip content={<ChartTooltip labelFormatter={fmt} />} />
+          {canHover && <Tooltip content={<ChartTooltip labelFormatter={fmt} />} />}
           <Line type="monotone" dataKey="amount" name="Spent" stroke={SPENT} strokeWidth={2} dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }} />
         </LineChart>
       </ChartBox>
@@ -377,9 +518,16 @@ export function TrendChart({ data }) {
 
 // ---------------------------------------------------------------- Monthly
 
-export function MonthlyChart({ data }) {
+export function MonthlyChart({ data, sample = false }) {
+  const canHover = useCanHover()
   const series = data.series.map((p) => ({ ...p, Income: p.income, Spent: p.spent }))
-  if (!series.some((p) => p.income || p.spent)) return <Empty>No income or expenses in the last 12 months.</Empty>
+  if (!sample && !series.some((p) => p.income || p.spent)) {
+    return (
+      <SamplePreview hint="Add income and expenses to compare the last 12 months and see what you saved each month.">
+        <MonthlyChart data={sampleData.monthly(data)} sample />
+      </SamplePreview>
+    )
+  }
   const fmt = (k) => monthLabel(k, true)
 
   return (
@@ -389,7 +537,9 @@ export function MonthlyChart({ data }) {
           <CartesianGrid vertical={false} stroke={GRID} />
           <XAxis dataKey="key" tickFormatter={(k) => monthLabel(k)} tick={TICK} tickLine={false} axisLine={false} interval={0} dy={6} />
           <YAxis tickFormatter={compactRupees} tick={TICK} tickLine={false} axisLine={false} width={56} />
-          <Tooltip cursor={{ fill: "#f8fafc" }} content={<ChartTooltip labelFormatter={fmt} extra={(p) => `Saved ${formatCurrency(p.income - p.spent)}`} />} />
+          {canHover && (
+            <Tooltip cursor={{ fill: "#f8fafc" }} content={<ChartTooltip labelFormatter={fmt} extra={(p) => `Saved ${formatCurrency(p.income - p.spent)}`} />} />
+          )}
           <Legend verticalAlign="top" align="right" height={32} iconType="circle" iconSize={8} formatter={legendText} />
           <Bar dataKey="Income" fill={INCOME} radius={[4, 4, 0, 0]} maxBarSize={22} />
           <Bar dataKey="Spent" fill={SPENT} radius={[4, 4, 0, 0]} maxBarSize={22} />
@@ -428,14 +578,20 @@ export function MonthlyChart({ data }) {
 
 // ---------------------------------------------------------------- Budget vs actual
 
-export function BudgetChart({ data }) {
+export function BudgetChart({ data, sample = false }) {
   const budgets = data.budgets || []
-  if (!budgets.length) {
+  if (!budgets.length && !sample) {
     return (
-      <Empty>
-        No budgets set for this month.{" "}
-        <Link href="/budgets" className="font-semibold text-blue-600 hover:underline">Set a budget</Link>
-      </Empty>
+      <div className="space-y-4">
+        <SamplePreview hint="Set a monthly budget for your categories to track spending against each limit here.">
+          <BudgetChart data={sampleData.budget()} sample />
+        </SamplePreview>
+        <div className="flex justify-center">
+          <Link href="/budgets" className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700">
+            Set a budget
+          </Link>
+        </div>
+      </div>
     )
   }
   const limit = budgets.reduce((s, b) => s + b.amount, 0)
@@ -485,9 +641,16 @@ export function BudgetChart({ data }) {
 
 // ---------------------------------------------------------------- By weekday
 
-export function WeekdayChart({ data }) {
+export function WeekdayChart({ data, sample = false }) {
+  const canHover = useCanHover()
   const total = data.series.reduce((s, p) => s + p.amount, 0)
-  if (!total) return <Empty />
+  if (!total && !sample) {
+    return (
+      <SamplePreview hint="Add expenses to see which days of the week you spend the most on.">
+        <WeekdayChart data={sampleData.weekday(data)} sample />
+      </SamplePreview>
+    )
+  }
   const max = Math.max(...data.series.map((p) => p.amount))
   const top = data.series.find((p) => p.amount === max)
 
@@ -502,10 +665,12 @@ export function WeekdayChart({ data }) {
           <CartesianGrid vertical={false} stroke={GRID} />
           <XAxis dataKey="key" tick={TICK} tickLine={false} axisLine={false} dy={6} />
           <YAxis tickFormatter={compactRupees} tick={TICK} tickLine={false} axisLine={false} width={56} />
-          <Tooltip
-            cursor={{ fill: "#f8fafc" }}
-            content={<ChartTooltip extra={(p) => `${p.count} ${p.count === 1 ? "entry" : "entries"}`} />}
-          />
+          {canHover && (
+            <Tooltip
+              cursor={{ fill: "#f8fafc" }}
+              content={<ChartTooltip extra={(p) => `${p.count} ${p.count === 1 ? "entry" : "entries"}`} />}
+            />
+          )}
           <Bar dataKey="amount" name="Spent" radius={[4, 4, 0, 0]} maxBarSize={48}>
             {data.series.map((p) => (
               <Cell key={p.key} fill={p.amount === max ? SPENT : "#bfdbfe"} />
