@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ChevronDown } from "lucide-react"
 
 // Curated emoji for expense categories, grouped so the right one is quick to find.
@@ -23,7 +23,28 @@ export const EMOJI_GROUPS = [
 export default function EmojiPicker({ value, onChange, size = "md", id }) {
   const [open, setOpen] = useState(false)
   const [group, setGroup] = useState(0)
+  const containerRef = useRef(null)
   const panelId = id ? `${id}-panel` : undefined
+
+  // Close when tapping/clicking anywhere outside the picker, or on Escape
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false)
+    }
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation() // don't also close the surrounding sheet
+        setOpen(false)
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("keydown", onKey, true)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("keydown", onKey, true)
+    }
+  }, [open])
 
   const pick = (emoji) => {
     onChange(emoji)
@@ -33,7 +54,7 @@ export default function EmojiPicker({ value, onChange, size = "md", id }) {
   const buttonSize = size === "sm" ? "h-9 w-14 text-lg rounded-lg" : "h-11 w-16 text-2xl rounded-xl"
 
   return (
-    <div className="w-full">
+    <div className="w-full" ref={containerRef}>
       <button
         id={id}
         type="button"
