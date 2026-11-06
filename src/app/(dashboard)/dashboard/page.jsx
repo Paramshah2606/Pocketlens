@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
-import { Wallet, TrendingUp, Loader2, ArrowRight, Edit2, Trash2, ChevronDown, ArrowLeft, Layers } from "lucide-react"
+import { Wallet, TrendingUp, Loader2, ArrowRight, Edit2, Trash2, ChevronDown, ArrowLeft, Layers, PiggyBank, Plus, Banknote } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
 import Link from "next/link"
-import { openAddExpenseModal, triggerRefresh } from "@/store/uiSlice"
+import { openAddExpenseModal, openAddIncomeModal } from "@/store/uiSlice"
+import { getIncomeSource } from "@/lib/incomeSources"
+import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 
 export default function DashboardPage() {
   const [data, setData] = useState(null)
@@ -20,6 +22,7 @@ export default function DashboardPage() {
   
   const dispatch = useDispatch()
   const refreshTrigger = useSelector((state) => state.ui.refreshTrigger)
+  const { requestDelete, deleteDialog } = useDeleteEntry()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -52,21 +55,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchInsights()
   }, [refreshTrigger, timeRange, drillDownCategoryId])
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this expense?")) return
-    
-    try {
-      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" })
-      if (res.ok) {
-        dispatch(triggerRefresh())
-      } else {
-        alert("Failed to delete expense")
-      }
-    } catch (error) {
-      console.error("Delete error", error)
-    }
-  }
 
   const handleEdit = (expense) => {
     dispatch(openAddExpenseModal(expense))
@@ -103,6 +91,9 @@ export default function DashboardPage() {
   }
 
   const totalSpent = data?.overallTotalSpent || 0
+  const totalIncome = data?.totalIncome || 0
+  const balance = totalIncome - totalSpent
+  const savingsRate = totalIncome > 0 ? Math.round((balance / totalIncome) * 100) : null
   const topCategory = data?.topCategory || null
 
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
@@ -175,6 +166,53 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
+        {/* Income Card */}
+        <Card className="rounded-3xl border-slate-100 shadow-sm transition-all hover:shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Income</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center">
+              <Banknote className="h-4 w-4 text-emerald-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight text-emerald-600 mb-1">{formatCurrency(totalIncome)}</div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-500">{getTimeRangeLabel()}</p>
+              <button
+                onClick={() => dispatch(openAddIncomeModal())}
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add income
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Balance Card */}
+        <Card className="rounded-3xl border-slate-100 shadow-sm transition-all hover:shadow-md md:col-span-2 lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Balance</CardTitle>
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${balance >= 0 ? "bg-blue-50" : "bg-red-50"}`}>
+              <PiggyBank className={`h-4 w-4 ${balance >= 0 ? "text-blue-500" : "text-red-500"}`} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold tracking-tight mb-1 ${balance >= 0 ? "text-slate-900" : "text-red-600"}`}>
+              {formatCurrency(balance)}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-500">Income − spent</p>
+              {savingsRate !== null && (
+                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${savingsRate >= 0 ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
+                  {savingsRate >= 0 ? `${savingsRate}% saved` : `${Math.abs(savingsRate)}% over`}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Top Category Card */}
         <Card className="rounded-3xl border-slate-100 shadow-sm transition-all hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -372,12 +410,12 @@ export default function DashboardPage() {
                   <div className="flex items-center flex-1">
                     <div 
                       className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shadow-sm shrink-0"
-                      style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
+                      style={{ backgroundColor: `${expense.categoryId?.color || "#64748b"}15`, color: expense.categoryId?.color }}
                     >
-                      <span className="text-lg sm:text-xl">{expense.categoryId.icon || "🏷️"}</span>
+                      <span className="text-lg sm:text-xl">{expense.categoryId?.icon || "🏷️"}</span>
                     </div>
                     <div className="ml-4 space-y-0.5 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{expense.categoryId.name}</p>
+                      <p className="text-sm font-bold text-slate-900 truncate">{expense.categoryId?.name || "Uncategorized"}</p>
                       <p className="text-xs text-slate-400 font-medium truncate">{expense.description || "No description"}</p>
                     </div>
                   </div>
@@ -385,7 +423,7 @@ export default function DashboardPage() {
                     <div className="font-bold text-slate-900">
                       {formatCurrency(expense.amount)}
                     </div>
-                    <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                    <div className="flex items-center gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-all">
                       <button 
                         onClick={() => handleEdit(expense)}
                         className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
@@ -393,7 +431,8 @@ export default function DashboardPage() {
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button 
-                        onClick={() => handleDelete(expense._id)}
+                        onClick={() => requestDelete("expense", expense)}
+                        aria-label="Delete expense"
                         className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -406,6 +445,75 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Recent Income */}
+      <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
+        <CardHeader className="flex flex-row items-center justify-between pb-6 border-b border-slate-50">
+          <div>
+            <CardTitle className="text-xl font-bold">Recent Income</CardTitle>
+            <CardDescription>Salary and other money received {getTimeRangeLabel().toLowerCase()}.</CardDescription>
+          </div>
+          <button
+            onClick={() => dispatch(openAddIncomeModal())}
+            className="text-sm font-bold text-emerald-700 hover:text-emerald-800 flex items-center bg-emerald-50 px-4 py-2 rounded-xl transition-colors shrink-0"
+          >
+            <Plus className="mr-1 h-4 w-4" /> Add
+          </button>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="space-y-6">
+            {!data?.recentIncome?.length ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <p className="text-sm text-slate-400 font-medium">No income recorded for this period.</p>
+                <button
+                  onClick={() => dispatch(openAddIncomeModal())}
+                  className="mt-3 text-sm font-semibold text-emerald-700 hover:underline"
+                >
+                  Add your salary or other income
+                </button>
+              </div>
+            ) : (
+              data.recentIncome.map(income => {
+                const source = getIncomeSource(income.source)
+                return (
+                  <div key={income._id} className="flex items-center group gap-3">
+                    <div
+                      className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shrink-0"
+                      style={{ backgroundColor: `${source.color}1a` }}
+                    >
+                      <span className="text-lg sm:text-xl">{source.icon}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <p className="text-sm font-bold text-slate-900 truncate">{source.label}</p>
+                      <p className="text-xs text-slate-400 font-medium truncate">
+                        {income.description || new Date(income.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <div className="font-bold text-emerald-600 shrink-0">+{formatCurrency(income.amount)}</div>
+                    <div className="flex items-center gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-all">
+                      <button
+                        onClick={() => dispatch(openAddIncomeModal(income))}
+                        className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+                        aria-label="Edit income"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => requestDelete("income", income)}
+                        className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                        aria-label="Delete income"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      {deleteDialog}
     </div>
   )
 }

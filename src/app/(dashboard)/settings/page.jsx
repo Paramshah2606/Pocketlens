@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { User, Palette, LogOut, Loader2, Check } from "lucide-react"
+import Link from "next/link"
+import { User, Palette, LogOut, Loader2, Check, Tags, ChevronRight } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -127,6 +128,21 @@ export default function SettingsPage() {
              </CardContent>
           </div>
         </Card>
+
+        {/* Categories */}
+        <Link
+          href="/categories"
+          className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 text-slate-900 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <Tags className="h-6 w-6" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-bold">Categories</span>
+            <span className="mt-1 block text-sm text-slate-500">Add, edit or delete your expense categories and sub-categories.</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+        </Link>
 
         {/* Install App */}
         <InstallAppCard />

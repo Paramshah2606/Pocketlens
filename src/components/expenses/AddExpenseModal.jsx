@@ -2,18 +2,28 @@
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
-import { X, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { X, Loader2, Settings2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useDispatch, useSelector } from "react-redux"
-import { closeAddExpenseModal, triggerRefresh } from "@/store/uiSlice"
+import { closeAddExpenseModal, setModalType, triggerRefresh } from "@/store/uiSlice"
+import IncomeForm from "@/components/income/IncomeForm"
+import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 
 export default function AddExpenseModal() {
   const dispatch = useDispatch()
   const isAddExpenseModalOpen = useSelector((state) => state.ui.isAddExpenseModalOpen)
   const editingExpense = useSelector((state) => state.ui.editingExpense)
+  const editingIncome = useSelector((state) => state.ui.editingIncome)
+  const modalType = useSelector((state) => state.ui.modalType)
+  const presetDate = useSelector((state) => state.ui.presetDate)
+  const isIncome = modalType === "income"
+  const { requestDelete, deleteDialog } = useDeleteEntry({
+    onDeleted: () => dispatch(closeAddExpenseModal()),
+  })
   
   const [categories, setCategories] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -39,12 +49,16 @@ export default function AddExpenseModal() {
   const watchSubCategoryId = watch("subCategoryId")
 
   useEffect(() => {
+    if (!isAddExpenseModalOpen) {
+      setIsCreatingCategory(false)
+      setIsCreatingSub(false)
+    }
     if (isAddExpenseModalOpen) {
       fetchCategories()
       
       if (editingExpense) {
         setValue("amount", editingExpense.amount)
-        setValue("categoryId", editingExpense.categoryId._id || editingExpense.categoryId)
+        setValue("categoryId", editingExpense.categoryId?._id || editingExpense.categoryId || "")
         setValue("subCategoryId", editingExpense.subCategoryId?._id || editingExpense.subCategoryId || null)
         setValue("description", editingExpense.description || "")
         setValue("date", new Date(editingExpense.date).toISOString().split('T')[0])
@@ -54,12 +68,12 @@ export default function AddExpenseModal() {
           categoryId: "",
           subCategoryId: null,
           description: "",
-          date: new Date().toISOString().split('T')[0]
+          date: presetDate || new Date().toISOString().split('T')[0]
         })
         setSelectedCategory(null)
       }
     }
-  }, [isAddExpenseModalOpen, editingExpense, setValue, reset])
+  }, [isAddExpenseModalOpen, editingExpense, presetDate, setValue, reset])
 
   useEffect(() => {
     if (categories.length > 0 && watchCategoryId) {
@@ -169,20 +183,27 @@ export default function AddExpenseModal() {
 
   if (!isAddExpenseModalOpen) return null
 
+  const isEditing = Boolean(editingExpense || editingIncome)
+  let title = editingExpense ? "Edit Expense" : "Add Expense"
+  let subtitle = editingExpense ? "Update your transaction details" : "Track a new transaction"
+  if (isIncome) {
+    title = editingIncome ? "Edit Income" : "Add Income"
+    subtitle = editingIncome ? "Update your income details" : "Record salary or any money you received"
+  } else if (isCreatingCategory) {
+    title = "New Category"
+    subtitle = "Create your custom category"
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/40 backdrop-blur-sm transition-all md:items-center md:justify-center">
-      <div className="w-full animate-in slide-in-from-bottom-full rounded-t-3xl bg-white p-6 shadow-2xl md:max-w-lg md:rounded-3xl border border-slate-100">
+      <div className="w-full max-h-[92dvh] overflow-y-auto animate-in slide-in-from-bottom-full rounded-t-3xl bg-white p-6 shadow-2xl md:max-w-lg md:rounded-3xl border border-slate-100">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              {isCreatingCategory ? "New Category" : (editingExpense ? "Edit Expense" : "Add Expense")}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {isCreatingCategory ? "Create your custom category" : (editingExpense ? "Update your transaction details" : "Track a new transaction")}
-            </p>
+            <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+            <p className="text-sm text-slate-500">{subtitle}</p>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 hover:bg-slate-200" onClick={() => {
-            if (isCreatingCategory) {
+            if (isCreatingCategory && !isIncome) {
               setIsCreatingCategory(false)
             } else {
               dispatch(closeAddExpenseModal())
@@ -192,7 +213,32 @@ export default function AddExpenseModal() {
           </Button>
         </div>
         
-        {isCreatingCategory ? (
+        {!isEditing && !(isCreatingCategory && !isIncome) && (
+          <div className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" role="tablist" aria-label="Transaction type">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isIncome}
+              onClick={() => dispatch(setModalType("expense"))}
+              className={`rounded-xl py-2 text-sm font-semibold transition-all ${!isIncome ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isIncome}
+              onClick={() => dispatch(setModalType("income"))}
+              className={`rounded-xl py-2 text-sm font-semibold transition-all ${isIncome ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Income
+            </button>
+          </div>
+        )}
+
+        {isIncome ? (
+          <IncomeForm editingIncome={editingIncome} presetDate={presetDate} />
+        ) : isCreatingCategory ? (
           <form onSubmit={handleCreateCategory} className="space-y-5 animate-in fade-in zoom-in-95">
             <div className="space-y-2">
                <Label className="text-slate-700">Category Name</Label>
@@ -240,7 +286,16 @@ export default function AddExpenseModal() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-700">Category</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-slate-700">Category</Label>
+              <Link
+                href="/categories"
+                onClick={() => dispatch(closeAddExpenseModal())}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+              >
+                <Settings2 className="h-3.5 w-3.5" /> Manage
+              </Link>
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {categories.map(cat => (
                 <button
@@ -346,10 +401,21 @@ export default function AddExpenseModal() {
             <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold shadow-md shadow-blue-500/20" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (editingExpense ? "Update Transaction" : "Save Transaction")}
             </Button>
+            {editingExpense && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => requestDelete("expense", editingExpense)}
+                className="mt-2 w-full h-11 rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Delete expense
+              </Button>
+            )}
           </div>
         </form>
         )}
       </div>
+      {deleteDialog}
     </div>
   )
 }

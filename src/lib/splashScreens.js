@@ -6,6 +6,10 @@ export const appleSplashScreens = [
     "media": "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
   },
   {
+    "url": "/splash/splash-1260x2736.png",
+    "media": "(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
     "url": "/splash/splash-1206x2622.png",
     "media": "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
   },

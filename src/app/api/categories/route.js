@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Category from '@/models/Category';
+import Expense from '@/models/Expense';
+import Budget from '@/models/Budget';
+
+// Categories a user can see: shared defaults (userId null) + their own
+const visibleTo = (userId) => ({ $or: [{ userId: null }, { userId }] });
 
 export async function GET(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
 
-    const visibilityFilter = { $or: [{ userId: null }, { userId }] };
-
     const [topLevel, subCategories] = await Promise.all([
-      Category.find({ ...visibilityFilter, parentCategoryId: null }).sort({ isDefault: -1, name: 1 }),
-      Category.find({ ...visibilityFilter, parentCategoryId: { $ne: null } }).sort({ name: 1 })
+      Category.find({ ...visibleTo(userId), parentCategoryId: null }).sort({ isDefault: -1, name: 1 }).lean(),
+      Category.find({ ...visibleTo(userId), parentCategoryId: { $ne: null } }).sort({ name: 1 }).lean()
     ]);
 
     // Build parentId → subcategory[] map
@@ -23,16 +27,10 @@ export async function GET(req) {
     }
 
     // Attach subCategories array to each top-level category, inheriting color for subs
-    const categories = topLevel.map(cat => {
-      const catObj = cat.toObject();
-      const subs = (subMap.get(cat._id.toString()) || []).map(sub => {
-        const s = sub.toObject();
-        if (!s.color) s.color = cat.color;
-        return s;
-      });
-      catObj.subCategories = subs;
-      return catObj;
-    });
+    const categories = topLevel.map(cat => ({
+      ...cat,
+      subCategories: (subMap.get(cat._id.toString()) || []).map(sub => ({ ...sub, color: sub.color || cat.color })),
+    }));
 
     return NextResponse.json({ categories }, { status: 200 });
   } catch (error) {
@@ -47,8 +45,8 @@ export async function POST(req) {
     const userId = req.headers.get('x-user-id');
     const { name, icon, color, parentCategoryId } = await req.json();
 
-    if (!name || !icon) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!name?.trim() || !icon?.trim()) {
+      return NextResponse.json({ error: 'Name and icon are required' }, { status: 400 });
     }
 
     if (!parentCategoryId) {
@@ -58,8 +56,8 @@ export async function POST(req) {
       }
       const newCategory = await Category.create({
         userId,
-        name,
-        icon,
+        name: name.trim(),
+        icon: icon.trim(),
         color,
         parentCategoryId: null,
         isDefault: false
@@ -67,16 +65,19 @@ export async function POST(req) {
       return NextResponse.json({ category: newCategory }, { status: 201 });
     }
 
-    // Subcategory — verify parent exists
-    const parent = await Category.findById(parentCategoryId);
+    // Subcategory: parent must be a top-level category this user can see
+    if (!mongoose.isValidObjectId(parentCategoryId)) {
+      return NextResponse.json({ error: 'Parent category not found' }, { status: 404 });
+    }
+    const parent = await Category.findOne({ _id: parentCategoryId, parentCategoryId: null, ...visibleTo(userId) });
     if (!parent) {
       return NextResponse.json({ error: 'Parent category not found' }, { status: 404 });
     }
 
     const newSubCategory = await Category.create({
       userId,
-      name,
-      icon,
+      name: name.trim(),
+      icon: icon.trim(),
       color: color || null,
       parentCategoryId,
       isDefault: false
@@ -88,32 +89,43 @@ export async function POST(req) {
   }
 }
 
+// Loads a category and checks the user may change it (own, non-default)
+async function findEditable(categoryId, userId) {
+  if (!categoryId || !mongoose.isValidObjectId(categoryId)) {
+    return { error: NextResponse.json({ error: 'categoryId is required' }, { status: 400 }) };
+  }
+  const category = await Category.findById(categoryId);
+  if (!category) return { error: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
+  if (category.isDefault || !category.userId) {
+    return { error: NextResponse.json({ error: 'Default categories cannot be changed' }, { status: 403 }) };
+  }
+  if (category.userId.toString() !== userId) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  return { category };
+}
+
 export async function PUT(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { categoryId, name, icon, color } = await req.json();
 
-    if (!categoryId) {
-      return NextResponse.json({ error: 'categoryId is required' }, { status: 400 });
-    }
-
-    const category = await Category.findById(categoryId);
-    if (!category) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-    if (category.isDefault) {
-      return NextResponse.json({ error: 'Cannot edit default categories' }, { status: 403 });
-    }
-    if (category.userId?.toString() !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const { category, error } = await findEditable(categoryId, userId);
+    if (error) return error;
 
     const updates = {};
-    if (name !== undefined) updates.name = name;
-    if (icon !== undefined) updates.icon = icon;
+    if (name !== undefined) {
+      if (!name.trim()) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
+      updates.name = name.trim();
+    }
+    if (icon !== undefined) {
+      if (!icon.trim()) return NextResponse.json({ error: 'Icon cannot be empty' }, { status: 400 });
+      updates.icon = icon.trim();
+    }
     if (color !== undefined) updates.color = color;
 
-    const updated = await Category.findByIdAndUpdate(categoryId, { $set: updates }, { new: true });
+    const updated = await Category.findByIdAndUpdate(category._id, { $set: updates }, { new: true });
     return NextResponse.json({ category: updated }, { status: 200 });
   } catch (error) {
     console.error('Category PUT error:', error);
@@ -121,38 +133,57 @@ export async function PUT(req) {
   }
 }
 
+// DELETE /api/categories?categoryId=...[&moveTo=otherCategoryId]
+// - Sub-category: its expenses stay in the parent category, just without a sub-category.
+// - Top-level category with expenses: requires moveTo, and those expenses are moved there.
+//   Returns 409 { expenseCount } when moveTo is missing so the UI can ask the user.
 export async function DELETE(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { searchParams } = new URL(req.url);
     const categoryId = searchParams.get('categoryId');
+    const moveTo = searchParams.get('moveTo');
 
-    if (!categoryId) {
-      return NextResponse.json({ error: 'categoryId is required' }, { status: 400 });
+    const { category, error } = await findEditable(categoryId, userId);
+    if (error) return error;
+
+    if (category.parentCategoryId) {
+      await Expense.updateMany({ userId, subCategoryId: category._id }, { $unset: { subCategoryId: 1 } });
+      await Category.deleteOne({ _id: category._id });
+      return NextResponse.json({ message: 'Deleted successfully' }, { status: 200 });
     }
 
-    const category = await Category.findById(categoryId);
-    if (!category) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const expenseCount = await Expense.countDocuments({ userId, categoryId: category._id });
 
-    if (category.isDefault) {
-      return NextResponse.json({ error: 'Cannot delete default categories' }, { status: 403 });
-    }
-    if (category.userId?.toString() !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (expenseCount > 0) {
+      if (!moveTo) {
+        return NextResponse.json({
+          error: 'This category has expenses. Choose a category to move them to.',
+          expenseCount
+        }, { status: 409 });
+      }
+      if (!mongoose.isValidObjectId(moveTo) || moveTo === categoryId) {
+        return NextResponse.json({ error: 'Invalid target category' }, { status: 400 });
+      }
+      const target = await Category.findOne({ _id: moveTo, parentCategoryId: null, ...visibleTo(userId) });
+      if (!target) {
+        return NextResponse.json({ error: 'Target category not found' }, { status: 404 });
+      }
+      // Sub-categories belong to the old category, so moved expenses lose theirs
+      await Expense.updateMany(
+        { userId, categoryId: category._id },
+        { $set: { categoryId: target._id }, $unset: { subCategoryId: 1 } }
+      );
     }
 
-    // If top-level, also delete user-owned subcategories under it
-    if (!category.parentCategoryId) {
-      await Category.deleteMany({
-        parentCategoryId: category._id,
-        userId,
-        isDefault: false
-      });
-    }
+    await Promise.all([
+      Budget.deleteMany({ userId, categoryId: category._id }),
+      Category.deleteMany({ parentCategoryId: category._id, userId, isDefault: false }),
+    ]);
+    await Category.deleteOne({ _id: category._id });
 
-    await Category.findByIdAndDelete(categoryId);
-    return NextResponse.json({ message: 'Deleted successfully' }, { status: 200 });
+    return NextResponse.json({ message: 'Deleted successfully', movedExpenses: expenseCount }, { status: 200 });
   } catch (error) {
     console.error('Category DELETE error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

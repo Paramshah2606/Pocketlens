@@ -73,15 +73,17 @@ export async function GET(req) {
         sort.date = -1;
     }
 
-    const total = await Expense.countDocuments(query);
+    const [total, expenses] = await Promise.all([
+      Expense.countDocuments(query),
+      Expense.find(query)
+        .populate('categoryId', 'name icon color')
+        .populate('subCategoryId', 'name icon')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
     const totalPages = Math.ceil(total / limit);
-
-    const expenses = await Expense.find(query)
-      .populate('categoryId', 'name icon color')
-      .populate('subCategoryId', 'name icon')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit);
 
     return NextResponse.json({ 
       expenses, 

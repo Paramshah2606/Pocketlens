@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
-import { openAddExpenseModal, triggerRefresh } from "@/store/uiSlice"
+import { openAddExpenseModal } from "@/store/uiSlice"
+import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState([])
@@ -76,20 +77,7 @@ export default function ExpensesPage() {
     fetchData()
   }, [refreshTrigger, filters])
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this expense?")) return
-    
-    try {
-      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" })
-      if (res.ok) {
-        dispatch(triggerRefresh())
-      } else {
-        alert("Failed to delete expense")
-      }
-    } catch (error) {
-      console.error("Delete error", error)
-    }
-  }
+  const { requestDelete, deleteDialog } = useDeleteEntry()
 
   const handleEdit = (expense) => {
     dispatch(openAddExpenseModal(expense))
@@ -301,13 +289,13 @@ export default function ExpensesPage() {
                         <div className="flex items-center gap-4 sm:gap-5 min-w-0">
                           <div 
                             className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl shadow-sm shrink-0"
-                            style={{ backgroundColor: `${expense.categoryId.color}15`, color: expense.categoryId.color }}
+                            style={{ backgroundColor: `${expense.categoryId?.color || "#64748b"}15`, color: expense.categoryId?.color }}
                           >
-                            <span className="text-xl sm:text-2xl">{expense.categoryId.icon || "🏷️"}</span>
+                            <span className="text-xl sm:text-2xl">{expense.categoryId?.icon || "🏷️"}</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{expense.categoryId.name}</h3>
+                              <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{expense.categoryId?.name || "Uncategorized"}</h3>
                               {subCategory && (
                                 <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
                                   {subCategory.name}
@@ -338,7 +326,8 @@ export default function ExpensesPage() {
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8 sm:h-9 sm:w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                              onClick={() => handleDelete(expense._id)}
+                              onClick={() => requestDelete("expense", expense)}
+                              aria-label="Delete expense"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -411,7 +400,7 @@ export default function ExpensesPage() {
           )}
         </div>
       )}
+      {deleteDialog}
     </div>
   )
 }
-

@@ -11,7 +11,9 @@ import {
   LogOut, 
   Bell,
   Menu,
-  Plus
+  Plus,
+  Tags,
+  CalendarDays
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,8 +27,14 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: PieChart },
   { name: "Expenses", href: "/expenses", icon: Wallet },
   { name: "Budgets", href: "/budgets", icon: Target },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays, desktopOnly: true },
+  { name: "Categories", href: "/categories", icon: Tags, desktopOnly: true },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
+
+// The mobile bottom bar has room for four items around the add button. On phones,
+// Calendar is in the top header and Categories is reached via Settings / the add sheet.
+const mobileNavItems = navItems.filter((item) => !item.desktopOnly)
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname()
@@ -84,7 +92,7 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col pb-16 md:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm md:px-6">
           <div className="flex items-center md:hidden">
@@ -101,6 +109,13 @@ export default function DashboardLayout({ children }) {
               variant="secondary"
               className="rounded-full px-3 text-xs sm:text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
             />
+            <Link
+              href="/calendar"
+              className={`rounded-full p-2 md:hidden ${pathname === "/calendar" ? "bg-blue-50 text-blue-600" : "text-slate-400 hover:bg-slate-100 hover:text-slate-500"}`}
+              aria-label="Calendar"
+            >
+              <CalendarDays className="h-5 w-5" />
+            </Link>
             <button className="relative rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-500">
               <span className="sr-only">View notifications</span>
               <Bell className="h-5 w-5" />
@@ -117,7 +132,7 @@ export default function DashboardLayout({ children }) {
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t bg-white pb-safe pt-1 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        {navItems.slice(0, 2).map((item) => {
+        {mobileNavItems.slice(0, 2).map((item) => {
           const isActive = pathname === item.href
           return (
             <Link
@@ -143,7 +158,7 @@ export default function DashboardLayout({ children }) {
           </button>
         </div>
 
-        {navItems.slice(2).map((item) => {
+        {mobileNavItems.slice(2).map((item) => {
           const isActive = pathname === item.href
           return (
             <Link

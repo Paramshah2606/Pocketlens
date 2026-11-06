@@ -8,11 +8,19 @@ export async function PUT(req, { params }) {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { id } = await params;
-    const updateData = await req.json();
+    const body = await req.json();
+
+    // Only these fields may be changed by the client
+    const updateData = {};
+    for (const key of ['categoryId', 'subCategoryId', 'amount', 'description', 'notes', 'date']) {
+      if (body[key] !== undefined) updateData[key] = body[key];
+    }
+    if (updateData.amount !== undefined) updateData.amount = Number(updateData.amount);
+    if (updateData.date !== undefined) updateData.date = new Date(updateData.date);
 
     const expense = await Expense.findOneAndUpdate(
       { _id: id, userId },
-      updateData,
+      { $set: updateData },
       { new: true }
     ).populate('categoryId', 'name icon color');
 

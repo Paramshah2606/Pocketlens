@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Budget from '@/models/Budget';
 import Expense from '@/models/Expense';
-import Category from '@/models/Category';
+import '@/models/Category'; // registers the model used by populate()
+import mongoose from 'mongoose';
 
 export async function GET(req) {
   try {
@@ -13,28 +14,34 @@ export async function GET(req) {
     const currentMonth = now.getMonth() + 1; // 1-12
     const currentYear = now.getFullYear();
 
-    const budgets = await Budget.find({ userId, period: 'monthly', month: currentMonth, year: currentYear })
-      .populate('categoryId', 'name icon color');
-
     // Aggregate expenses for the current month
     const startDate = new Date(currentYear, currentMonth - 1, 1);
     const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
 
-    const expensesAgg = await Expense.aggregate([
-      { $match: { userId: userId, date: { $gte: startDate, $lte: endDate } } },
-      { $group: { _id: "$categoryId", totalSpent: { $sum: "$amount" } } }
+    const [budgets, expensesAgg] = await Promise.all([
+      Budget.find({ userId, period: 'monthly', month: currentMonth, year: currentYear })
+        .populate('categoryId', 'name icon color')
+        .lean(),
+      // aggregate() does not cast types, so userId must be an ObjectId here
+      Expense.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId), date: { $gte: startDate, $lte: endDate } } },
+        { $group: { _id: "$categoryId", totalSpent: { $sum: "$amount" } } }
+      ]),
     ]);
 
-    // Map spent amounts to budgets
-    const budgetStats = budgets.map(budget => {
-      const expenseMatch = expensesAgg.find(e => e._id.toString() === budget.categoryId._id.toString());
-      const spent = expenseMatch ? expenseMatch.totalSpent : 0;
-      return {
-        ...budget.toObject(),
-        spent,
-        percentageUsed: (spent / budget.amount) * 100
-      };
-    });
+    const spentByCategory = new Map(expensesAgg.map(e => [e._id.toString(), e.totalSpent]));
+
+    // Map spent amounts to budgets (skip budgets whose category was deleted)
+    const budgetStats = budgets
+      .filter(budget => budget.categoryId)
+      .map(budget => {
+        const spent = spentByCategory.get(budget.categoryId._id.toString()) || 0;
+        return {
+          ...budget,
+          spent,
+          percentageUsed: (spent / budget.amount) * 100
+        };
+      });
 
     return NextResponse.json({ budgets: budgetStats }, { status: 200 });
   } catch (error) {

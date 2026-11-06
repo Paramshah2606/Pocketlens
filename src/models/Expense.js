@@ -10,5 +10,9 @@ const expenseSchema = new mongoose.Schema({
   date: { type: Date, required: true, index: true }
 }, { timestamps: true });
 
+// Every list/summary query filters by user (+ date range or category)
+expenseSchema.index({ userId: 1, date: -1 });
+expenseSchema.index({ userId: 1, categoryId: 1, date: -1 });
+
 const Expense = mongoose.models.Expense || mongoose.model('Expense', expenseSchema);
 export default Expense;

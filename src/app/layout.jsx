@@ -48,6 +48,11 @@ export const metadata = {
   formatDetection: {
     telephone: false,
   },
+  // Next.js only emits the generic `mobile-web-app-capable` tag, but iOS still needs the
+  // apple-prefixed one before it will show apple-touch-startup-image splash screens.
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport = {
