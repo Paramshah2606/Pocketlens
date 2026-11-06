@@ -15,3 +15,14 @@ export function getRangeStart(timeRange, todayParam) {
   if (timeRange === 'year') return new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
   return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 }
+
+// Exclusive end of the same range: the start of the next week / month / year
+export function getRangeEnd(timeRange, todayParam) {
+  const start = getRangeStart(timeRange, todayParam);
+  if (timeRange === 'week') return new Date(start.getTime() + 7 * DAY_MS);
+  if (timeRange === 'year') return new Date(Date.UTC(start.getUTCFullYear() + 1, 0, 1));
+  return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+}
+
+// "YYYY-MM-DD" of a UTC-midnight date
+export const toDateKey = (date) => date.toISOString().slice(0, 10);

@@ -10,7 +10,8 @@ export default function manifest() {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#ffffff',
+    // Android builds its splash screen from this colour + the icon; matches the iOS splash
+    background_color: '#0a1024',
     theme_color: '#ffffff',
     categories: ['finance', 'productivity'],
     icons: [

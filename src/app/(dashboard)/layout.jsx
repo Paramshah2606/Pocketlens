@@ -13,7 +13,8 @@ import {
   Tags,
   CalendarDays,
   Banknote,
-  SquarePen
+  SquarePen,
+  BarChart3
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ import { InstallAppButton } from "@/components/InstallApp"
 import { Toaster } from "@/components/Toaster"
 import { AppEffects, OfflineBanner } from "@/components/AppEffects"
 import { toast } from "@/lib/toast"
+import { clearFetchCache } from "@/lib/useCachedFetch"
 
 // Two shells, split at Tailwind's `lg` (1024px):
 // • Laptop/desktop: sidebar navigation; adding opens a quick pop-up.
@@ -33,6 +35,7 @@ import { toast } from "@/lib/toast"
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: PieChart },
   { name: "Expenses", href: "/expenses", icon: Wallet },
+  { name: "Charts", href: "/charts", icon: BarChart3 },
   { name: "Budgets", href: "/budgets", icon: Target },
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Categories", href: "/categories", icon: Tags },
@@ -69,12 +72,13 @@ export default function DashboardLayout({ children }) {
   const router = useRouter()
   const dispatch = useDispatch()
   const currentSidebar = sidebarItems.find((item) => isActivePath(pathname, item.href))
-  const onDashboard = isActivePath(pathname, "/dashboard")
+  const onDashboard = isActivePath(pathname, "/dashboard") || isActivePath(pathname, "/charts")
   const onSettings = isActivePath(pathname, "/settings")
 
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
+      clearFetchCache()
       router.push("/login")
       router.refresh()
     } catch (error) {

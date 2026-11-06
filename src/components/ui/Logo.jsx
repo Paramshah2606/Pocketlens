@@ -22,10 +22,12 @@ export function Logo({ className = "", size = "md", asLink = true }) {
 
   const content = (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`flex ${sizeClasses[size]} items-center justify-center bg-primary text-white shadow-sm shadow-blue-500/20`}>
+      <div className={`flex ${sizeClasses[size]} items-center justify-center bg-gradient-to-br from-blue-400 via-blue-500 to-blue-700 text-white shadow-md shadow-blue-600/30 ring-1 ring-inset ring-white/20`}>
         <Wallet className={iconSizeClasses[size]} />
       </div>
-      <span className={`${textSizeClasses[size]} font-bold tracking-tight text-slate-900`}>PocketLens</span>
+      <span className={`${textSizeClasses[size]} font-extrabold tracking-[-0.035em] text-slate-900`}>
+        Pocket<span className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">Lens</span>
+      </span>
     </div>
   )
 

@@ -20,6 +20,10 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      // Fail fast instead of hanging when the cluster is unreachable, and keep a few
+      // connections open so a page's parallel queries don't queue behind each other
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 10,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {

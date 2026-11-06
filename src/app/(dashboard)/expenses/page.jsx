@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { Plus, Loader2, Calendar, Receipt, Edit2, Trash2, Filter, ArrowUpDown, Search, ChevronDown, Tag, Layers, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -14,11 +15,48 @@ import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 import { useOpenAdd } from "@/lib/useOpenAdd"
 import { localDateKey } from "@/lib/dates"
 
+const DATE_TYPES = ['all', 'today', 'thisWeek', 'thisMonth', 'thisYear', 'single', 'range']
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+const ID_RE = /^[a-f0-9]{24}$/i
+
+// Filters a link can preset, e.g. from the dashboard cards or a chart:
+// /expenses?dateType=range&startDate=2026-11-01&endDate=2026-11-30&categoryId=…&subCategoryId=…
+function filtersFromUrl(params) {
+  const preset = {}
+  const dateType = params.get('dateType')
+  if (DATE_TYPES.includes(dateType)) preset.dateType = dateType
+  for (const key of ['startDate', 'endDate']) {
+    if (DAY_RE.test(params.get(key) || '')) preset[key] = params.get(key)
+  }
+  if (ID_RE.test(params.get('categoryId') || '')) {
+    preset.categoryId = params.get('categoryId')
+    if (ID_RE.test(params.get('subCategoryId') || '')) preset.subCategoryId = params.get('subCategoryId')
+  }
+  return preset
+}
+
+// useSearchParams needs a Suspense boundary so the page can still be prerendered
 export default function ExpensesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ExpensesFromUrl />
+    </Suspense>
+  )
+}
+
+// Remount when the link's filters change (e.g. tapping "Expenses" while a filtered list is open)
+function ExpensesFromUrl() {
+  const searchParams = useSearchParams()
+  return <ExpensesView key={searchParams.toString()} searchParams={searchParams} />
+}
+
+function ExpensesView({ searchParams }) {
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isFilterVisible, setIsFilterVisible] = useState(false)
+  // Arriving from a link with filters: apply them and show the panel so it's clear why
+  const [urlFilters] = useState(() => filtersFromUrl(searchParams))
+  const [isFilterVisible, setIsFilterVisible] = useState(() => Object.keys(urlFilters).length > 0)
   const [totalAmount, setTotalAmount] = useState(0)
   
   const [pagination, setPagination] = useState({
@@ -36,7 +74,8 @@ export default function ExpensesPage() {
     subCategoryId: 'all',
     sortBy: 'date',
     sortOrder: 'desc',
-    page: 1
+    page: 1,
+    ...urlFilters
   })
   
   const dispatch = useDispatch()

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { User, Palette, LogOut, Loader2, Check, Tags, ChevronRight } from "lucide-react"
+import { clearFetchCache } from "@/lib/useCachedFetch"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
+      clearFetchCache()
       router.push("/login")
       router.refresh()
     } catch (error) {
