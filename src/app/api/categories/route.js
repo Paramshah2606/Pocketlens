@@ -4,9 +4,12 @@ import dbConnect from '@/lib/db';
 import Category from '@/models/Category';
 import Expense from '@/models/Expense';
 import Budget from '@/models/Budget';
+import { visibleTo } from '@/lib/categoryAccess';
+import { cleanString } from '@/lib/validate';
 
-// Categories a user can see: shared defaults (userId null) + their own
-const visibleTo = (userId) => ({ $or: [{ userId: null }, { userId }] });
+const COLOR_RE = /^#[0-9a-f]{6}$/i;
+const cleanName = (v) => cleanString(v, { max: 40 });
+const cleanIcon = (v) => cleanString(v, { max: 16 });
 
 export async function GET(req) {
   try {
@@ -43,10 +46,16 @@ export async function POST(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    const { name, icon, color, parentCategoryId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { color, parentCategoryId } = body;
+    const name = cleanName(body.name);
+    const icon = cleanIcon(body.icon);
 
-    if (!name?.trim() || !icon?.trim()) {
-      return NextResponse.json({ error: 'Name and icon are required' }, { status: 400 });
+    if (!name || !icon) {
+      return NextResponse.json({ error: 'Name (max 40 characters) and icon are required' }, { status: 400 });
+    }
+    if (color !== undefined && color !== null && !(typeof color === 'string' && COLOR_RE.test(color))) {
+      return NextResponse.json({ error: 'Invalid color' }, { status: 400 });
     }
 
     if (!parentCategoryId) {
@@ -56,8 +65,8 @@ export async function POST(req) {
       }
       const newCategory = await Category.create({
         userId,
-        name: name.trim(),
-        icon: icon.trim(),
+        name,
+        icon,
         color,
         parentCategoryId: null,
         isDefault: false
@@ -66,7 +75,7 @@ export async function POST(req) {
     }
 
     // Subcategory: parent must be a top-level category this user can see
-    if (!mongoose.isValidObjectId(parentCategoryId)) {
+    if (typeof parentCategoryId !== 'string' || !mongoose.isValidObjectId(parentCategoryId)) {
       return NextResponse.json({ error: 'Parent category not found' }, { status: 404 });
     }
     const parent = await Category.findOne({ _id: parentCategoryId, parentCategoryId: null, ...visibleTo(userId) });
@@ -76,8 +85,8 @@ export async function POST(req) {
 
     const newSubCategory = await Category.create({
       userId,
-      name: name.trim(),
-      icon: icon.trim(),
+      name,
+      icon,
       color: color || null,
       parentCategoryId,
       isDefault: false
@@ -91,7 +100,7 @@ export async function POST(req) {
 
 // Loads a category and checks the user may change it (own, non-default)
 async function findEditable(categoryId, userId) {
-  if (!categoryId || !mongoose.isValidObjectId(categoryId)) {
+  if (typeof categoryId !== 'string' || !mongoose.isValidObjectId(categoryId)) {
     return { error: NextResponse.json({ error: 'categoryId is required' }, { status: 400 }) };
   }
   const category = await Category.findById(categoryId);
@@ -109,21 +118,28 @@ export async function PUT(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    const { categoryId, name, icon, color } = await req.json();
+    const { categoryId, name, icon, color } = await req.json().catch(() => ({}));
 
     const { category, error } = await findEditable(categoryId, userId);
     if (error) return error;
 
     const updates = {};
     if (name !== undefined) {
-      if (!name.trim()) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
-      updates.name = name.trim();
+      const value = cleanName(name);
+      if (!value) return NextResponse.json({ error: 'Name must be 1–40 characters' }, { status: 400 });
+      updates.name = value;
     }
     if (icon !== undefined) {
-      if (!icon.trim()) return NextResponse.json({ error: 'Icon cannot be empty' }, { status: 400 });
-      updates.icon = icon.trim();
+      const value = cleanIcon(icon);
+      if (!value) return NextResponse.json({ error: 'Icon cannot be empty' }, { status: 400 });
+      updates.icon = value;
     }
-    if (color !== undefined) updates.color = color;
+    if (color !== undefined) {
+      if (!(typeof color === 'string' && COLOR_RE.test(color))) {
+        return NextResponse.json({ error: 'Invalid color' }, { status: 400 });
+      }
+      updates.color = color;
+    }
 
     const updated = await Category.findByIdAndUpdate(category._id, { $set: updates }, { new: true });
     return NextResponse.json({ category: updated }, { status: 200 });
@@ -163,7 +179,7 @@ export async function DELETE(req) {
           expenseCount
         }, { status: 409 });
       }
-      if (!mongoose.isValidObjectId(moveTo) || moveTo === categoryId) {
+      if (typeof moveTo !== 'string' || !mongoose.isValidObjectId(moveTo) || moveTo === categoryId) {
         return NextResponse.json({ error: 'Invalid target category' }, { status: 400 });
       }
       const target = await Category.findOne({ _id: moveTo, parentCategoryId: null, ...visibleTo(userId) });

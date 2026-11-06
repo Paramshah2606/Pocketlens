@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InstallAppCard } from "@/components/InstallApp"
+import { toast } from "@/lib/toast"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -60,12 +61,12 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: nameInput })
       })
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data.user)
-      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Couldn't save your profile")
+      setUser(data.user)
+      toast.success("Profile saved")
     } catch (error) {
-      console.error("Save profile failed", error)
+      toast.error(error.message)
     } finally {
       setIsSavingProfile(false)
     }

@@ -2,45 +2,61 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import { signToken } from '@/lib/jwt';
-import { cookies } from 'next/headers';
+import { startSession } from '@/lib/session';
+import { normalizeEmail, EMAIL_COLLATION } from '@/lib/validate';
+
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MS = 15 * 60 * 1000;
+
+// Compared against when the email is unknown, so response timing doesn't reveal which emails exist
+const DUMMY_HASH = bcrypt.hashSync('pocketlens-timing-equaliser', 10);
 
 export async function POST(req) {
   try {
     await dbConnect();
-    const { email, password } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === 'string' ? body.password : null;
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
+      return NextResponse.json({ error: 'Please enter a valid email and password' }, { status: 400 });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    const user = await User.findOne({ email }).collation(EMAIL_COLLATION);
+
+    if (user?.lockUntil && user.lockUntil.getTime() > Date.now()) {
+      const minutes = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
+      return NextResponse.json({ error: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` }, { status: 429 });
     }
 
+    const isMatch = await bcrypt.compare(password, user?.password || DUMMY_HASH);
+    if (!user || !isMatch) {
+      if (user) {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+        if (user.failedLoginAttempts >= MAX_FAILED_LOGINS) {
+          user.lockUntil = new Date(Date.now() + LOCK_MS);
+          user.failedLoginAttempts = 0;
+        }
+        await user.save();
+      }
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    // Only reveal verification status once the password is proven
     if (!user.isVerified) {
-      return NextResponse.json({ error: 'Please verify your email first', isVerified: false }, { status: 403 });
+      return NextResponse.json({ error: 'Please verify your email first', isVerified: false, email: user.email }, { status: 403 });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    if (user.failedLoginAttempts || user.lockUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = undefined;
+      await user.save();
     }
 
-    const token = signToken({ userId: user._id, email: user.email });
-    
-    const cookieStore = await cookies();
-    cookieStore.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
-    });
+    await startSession(user);
 
-    return NextResponse.json({ 
-      message: 'Logged in successfully', 
+    return NextResponse.json({
+      message: 'Logged in successfully',
       user: { id: user._id, name: user.name, email: user.email, currency: user.currency, theme: user.theme }
     }, { status: 200 });
 

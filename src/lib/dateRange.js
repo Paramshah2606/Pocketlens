@@ -1,11 +1,17 @@
-// Start date for the dashboard's time-range selector ("week" | "month" | "year").
-export function getRangeStart(timeRange, now = new Date()) {
+import { parseDate } from '@/lib/validate';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Start of the dashboard's time range ("week" | "month" | "year").
+// Entry dates are calendar days stored at UTC midnight, so ranges are computed in UTC
+// from the user's own "today" (?today=YYYY-MM-DD from the browser); without it, the
+// server's UTC date is used.
+export function getRangeStart(timeRange, todayParam) {
+  const today = parseDate(todayParam || '') || parseDate(new Date().toISOString().slice(0, 10));
   if (timeRange === 'week') {
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay());
-    start.setHours(0, 0, 0, 0);
-    return start;
+    // Week starts on Sunday, matching the dashboard's existing behaviour
+    return new Date(today.getTime() - today.getUTCDay() * DAY_MS);
   }
-  if (timeRange === 'year') return new Date(now.getFullYear(), 0, 1);
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (timeRange === 'year') return new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+  return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 }

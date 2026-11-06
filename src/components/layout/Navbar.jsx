@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/Logo"
+import { NavbarAuthLinks } from "@/components/layout/NavbarAuthLinks"
 import { InstallAppButton } from "@/components/InstallApp"
 
 export function Navbar() {
@@ -25,12 +25,7 @@ export function Navbar() {
             className="rounded-full px-2.5 sm:px-3 text-slate-600 hover:text-blue-600"
             iconClassName="mr-0 sm:mr-2 h-5 w-5 sm:h-4 sm:w-4"
           />
-          <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">
-            Log in
-          </Link>
-          <Button asChild size="sm" className="rounded-full px-5 shadow-sm">
-            <Link href="/signup">Sign up free</Link>
-          </Button>
+          <NavbarAuthLinks />
         </div>
       </div>
     </header>

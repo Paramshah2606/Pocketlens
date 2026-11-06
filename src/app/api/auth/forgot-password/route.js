@@ -2,38 +2,31 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { sendOTP } from '@/lib/mailer';
+import { issueOtp, resendWaitSeconds } from '@/lib/otp';
+import { normalizeEmail, EMAIL_COLLATION } from '@/lib/validate';
 
+// Starts a password reset. Always answers the same way so it can't be used to discover
+// which emails have accounts; a code is only emailed when the account exists.
 export async function POST(req) {
   try {
     await dbConnect();
-    const { email } = await req.json();
-
+    const body = await req.json().catch(() => ({}));
+    const email = normalizeEmail(body.email);
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Please enter a valid email' }, { status: 400 });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ error: 'User with this email does not exist' }, { status: 404 });
+    const generic = { message: 'If an account exists for this email, we sent a reset code.', email };
+
+    const user = await User.findOne({ email }).collation(EMAIL_COLLATION);
+    if (user && resendWaitSeconds(user) === 0) {
+      const otp = issueOtp(user);
+      await user.save();
+      const sent = await sendOTP(user.email, otp);
+      if (!sent) console.error('Forgot password: failed to send reset email');
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save();
-
-    const emailSent = await sendOTP(email, otp);
-    if (!emailSent) {
-      return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
-    }
-
-    return NextResponse.json({ 
-      message: 'OTP sent to your email',
-      userId: user._id
-    }, { status: 200 });
+    return NextResponse.json(generic, { status: 200 });
 
   } catch (error) {
     console.error('Forgot password error:', error);

@@ -1,33 +1,63 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Expense from '@/models/Expense';
-import Category from '@/models/Category';
+import '@/models/Category'; // registers the model used by populate()
+import { resolveCategory } from '@/lib/categoryAccess';
+import { isObjectId, optionalString, parseAmount, parseDate } from '@/lib/validate';
 
 export async function PUT(req, { params }) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { id } = await params;
-    const body = await req.json();
+    if (!isObjectId(id)) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
 
-    // Only these fields may be changed by the client
-    const updateData = {};
-    for (const key of ['categoryId', 'subCategoryId', 'amount', 'description', 'notes', 'date']) {
-      if (body[key] !== undefined) updateData[key] = body[key];
+    const body = await req.json().catch(() => ({}));
+    const $set = {};
+    const $unset = {};
+
+    if (body.amount !== undefined) {
+      const amount = parseAmount(body.amount);
+      if (amount === null) return NextResponse.json({ error: 'Please enter an amount greater than 0' }, { status: 400 });
+      $set.amount = amount;
     }
-    if (updateData.amount !== undefined) updateData.amount = Number(updateData.amount);
-    if (updateData.date !== undefined) updateData.date = new Date(updateData.date);
-
-    const expense = await Expense.findOneAndUpdate(
-      { _id: id, userId },
-      { $set: updateData },
-      { new: true }
-    ).populate('categoryId', 'name icon color');
-
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    if (body.date !== undefined) {
+      const date = parseDate(body.date);
+      if (!date) return NextResponse.json({ error: 'Please choose a valid date' }, { status: 400 });
+      $set.date = date;
+    }
+    for (const [key, max] of [['description', 200], ['notes', 1000]]) {
+      if (body[key] !== undefined) {
+        const value = optionalString(body[key], { max });
+        if (value === null) return NextResponse.json({ error: `${key} is too long` }, { status: 400 });
+        $set[key] = value;
+      }
     }
 
+    // Category changes: the new category (and sub-category) must belong to this user
+    if (body.categoryId !== undefined || body.subCategoryId !== undefined) {
+      let categoryId = body.categoryId;
+      if (categoryId === undefined) {
+        const current = await Expense.findOne({ _id: id, userId }).select('categoryId').lean();
+        if (!current) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+        categoryId = current.categoryId.toString();
+      }
+      const category = await resolveCategory(userId, categoryId, body.subCategoryId);
+      if (category.error) return NextResponse.json({ error: category.error }, { status: 400 });
+      $set.categoryId = category.categoryId;
+      if (category.subCategoryId) $set.subCategoryId = category.subCategoryId;
+      else $unset.subCategoryId = 1;
+    }
+
+    const update = { $set };
+    if (Object.keys($unset).length) update.$unset = $unset;
+
+    const expense = await Expense.findOneAndUpdate({ _id: id, userId }, update, { new: true })
+      .populate('categoryId', 'name icon color')
+      .populate('subCategoryId', 'name icon')
+      .lean();
+
+    if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
     return NextResponse.json({ expense }, { status: 200 });
   } catch (error) {
     console.error('Expense PUT error:', error);
@@ -40,12 +70,10 @@ export async function DELETE(req, { params }) {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { id } = await params;
+    if (!isObjectId(id)) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
 
     const expense = await Expense.findOneAndDelete({ _id: id, userId });
-
-    if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
-    }
+    if (!expense) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
 
     return NextResponse.json({ message: 'Expense deleted successfully' }, { status: 200 });
   } catch (error) {

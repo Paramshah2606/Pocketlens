@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { getIncomeSource } from "@/lib/incomeSources"
 import { triggerRefresh } from "@/store/uiSlice"
+import { toast } from "@/lib/toast"
 
 // Name/icon shown in the confirmation for an expense or income entry
 function describe(kind, entry) {
@@ -33,7 +34,7 @@ function ConfirmDeleteDialog({ kind, entry, busy, error, onCancel, onConfirm }) 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center"
       onClick={() => !busy && onCancel()}
       role="alertdialog"
       aria-modal="true"
@@ -106,6 +107,7 @@ export function useDeleteEntry({ onDeleted } = {}) {
         throw new Error(body.error || "Couldn't delete. Please try again.")
       }
       setTarget(null)
+      toast.success(kind === "income" ? "Income deleted" : "Expense deleted")
       dispatch(triggerRefresh())
       onDeleted?.(kind, entry)
     } catch (err) {

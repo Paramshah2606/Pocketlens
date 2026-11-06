@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin';
 import dbConnect from '@/lib/db';
 import Category from '@/models/Category';
 import mongoose from 'mongoose';
@@ -7,7 +8,11 @@ import mongoose from 'mongoose';
 // Preserves the original embedded subdoc _id values so existing Expense.subCategoryId
 // references remain valid without touching any Expense documents.
 // Safe to run multiple times.
-export async function GET() {
+export async function GET(req) {
+  // Changes data for every user: only callable with the ADMIN_SECRET header
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     await dbConnect();
 
@@ -59,6 +64,6 @@ export async function GET() {
     }, { status: 200 });
   } catch (error) {
     console.error('Migration error:', error);
-    return NextResponse.json({ error: 'Migration failed', detail: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Migration failed' }, { status: 500 });
   }
 }

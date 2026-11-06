@@ -1,98 +1,88 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { isSessionRevoked } from '@/lib/sessionCheck';
 
-// We use 'jose' instead of 'jsonwebtoken' because 'jsonwebtoken' uses Node.js crypto which is not available in the Edge Runtime
+// Next.js 16 "proxy" (formerly middleware). Runs on the Node.js runtime.
+// Verifies the auth cookie and passes the user id to API routes in the `x-user-id`
+// header, which routes trust — so any client-supplied `x-user-id` is always removed.
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
-export async function proxy(req) {
-  const token = req.cookies.get('token')?.value;
-  const { pathname } = req.nextUrl;
+// Login/signup flow: logged-in users are sent to the dashboard instead
+const AUTH_PAGES = ['/login', '/signup', '/verify', '/forgot-password', '/reset-password'];
 
-  const publicPaths = [
-    '/', 
-    '/login', 
-    '/signup', 
-    '/verify', 
-    '/forgot-password', 
-    '/reset-password',
-    '/about',
-    '/features',
-    '/how-it-works',
-    '/privacy',
-    '/terms',
-    '/help',
-    '/contact',
-    '/pricing',
-  ];
-  const isAuthApi = pathname.startsWith('/api/auth') || pathname === '/api/contact';
-  const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';
-  // Static/metadata files: served to everyone and never redirected to /dashboard for logged-in users
-  // (the PWA manifest and service worker must load whether or not the user is signed in).
-  const publicFiles = [
-    '/sitemap.xml',
-    '/robots.txt',
-    '/manifest.webmanifest',
-    '/sw.js',
-    '/icon',
-    '/apple-icon',
-    '/opengraph-image',
-  ];
-  const isPublicFile = publicFiles.includes(pathname);
+// Marketing/info pages: open to everyone, logged in or not
+const PUBLIC_PAGES = ['/', '/about', '/features', '/how-it-works', '/privacy', '/terms', '/help', '/contact', '/pricing'];
 
-  // Allow access to public paths and auth APIs without a token
-  if (publicPaths.includes(pathname) || isAuthApi || isMigrateApi || isPublicFile) {
-    if (token && publicPaths.includes(pathname) && pathname !== '/') {
-      // If user has a valid token and tries to access login/signup, redirect to dashboard
-      try {
-        await jwtVerify(token, JWT_SECRET);
-        return NextResponse.redirect(new URL('/dashboard', req.url));
-      } catch (e) {
-        // Token is invalid, let them proceed to login
-      }
-    }
-    return NextResponse.next();
-  }
+// Metadata & PWA files: must load for everyone (the manifest and service worker too)
+const PUBLIC_FILES = ['/sitemap.xml', '/robots.txt', '/manifest.webmanifest', '/sw.js', '/icon', '/apple-icon', '/opengraph-image'];
 
-  // Require token for all other paths (dashboard, settings, other apis)
-  if (!token) {
-    if (pathname.startsWith('/api')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
+function isPublicApi(pathname) {
+  return (
+    pathname.startsWith('/api/auth/') ||
+    pathname === '/api/contact' ||
+    // Maintenance endpoints authenticate with ADMIN_SECRET themselves (see src/lib/admin.js)
+    pathname === '/api/seed' ||
+    pathname === '/api/migrate-categories' ||
+    pathname === '/api/cleanup-categories'
+  );
+}
 
+async function readSession(token) {
+  if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    
-    // Pass user info via headers to the next handlers if needed
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set('x-user-id', payload.userId);
-    
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-  } catch (error) {
-    if (pathname.startsWith('/api')) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-    // Token is invalid/expired, redirect to login and clear cookie
-    const response = NextResponse.redirect(new URL('/login', req.url));
-    response.cookies.delete('token');
-    return response;
+    const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const userId = typeof payload.userId === 'string' ? payload.userId : null;
+    if (!userId || !/^[a-f\d]{24}$/i.test(userId)) return null;
+    return { userId, iat: payload.iat };
+  } catch {
+    return null;
   }
+}
+
+function clearSessionCookies(response) {
+  response.cookies.delete('token');
+  response.cookies.delete('logged_in');
+  return response;
+}
+
+export async function proxy(req) {
+  const { pathname } = req.nextUrl;
+  const isApi = pathname.startsWith('/api/');
+
+  const headers = new Headers(req.headers);
+  headers.delete('x-user-id');
+  const pass = () => NextResponse.next({ request: { headers } });
+
+  const token = req.cookies.get('token')?.value;
+  let session = await readSession(token);
+  if (session && (await isSessionRevoked(session))) session = null;
+
+  if (AUTH_PAGES.includes(pathname)) {
+    if (session) return NextResponse.redirect(new URL('/dashboard', req.url));
+    return token ? clearSessionCookies(pass()) : pass();
+  }
+
+  if (PUBLIC_PAGES.includes(pathname) || PUBLIC_FILES.includes(pathname) || (isApi && isPublicApi(pathname))) {
+    return pass();
+  }
+
+  if (!session) {
+    const response = isApi
+      ? NextResponse.json({ error: 'Your session has expired. Please log in again.' }, { status: 401 })
+      : NextResponse.redirect(new URL('/login', req.url));
+    return token ? clearSessionCookies(response) : response;
+  }
+
+  headers.set('x-user-id', session.userId);
+  return pass();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (e.g. images)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Pages: skip Next's static assets and image files served from public/
+    '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // API: always checked, whatever the path looks like
+    '/api/:path*',
   ],
 };

@@ -12,7 +12,7 @@ import { usePwaInstall } from "@/lib/pwaInstall"
 function IOSInstructions({ onClose }) {
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

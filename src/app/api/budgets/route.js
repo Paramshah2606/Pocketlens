@@ -1,30 +1,39 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Budget from '@/models/Budget';
 import Expense from '@/models/Expense';
 import '@/models/Category'; // registers the model used by populate()
-import mongoose from 'mongoose';
+import { resolveCategory } from '@/lib/categoryAccess';
+import { isObjectId, parseAmount } from '@/lib/validate';
+
+// Budgets are monthly. The browser sends its own month (?month=YYYY-MM) so the
+// "current month" matches the user's calendar rather than the server's timezone.
+function targetMonth(value) {
+  const m = /^(\d{4})-(\d{2})$/.exec(typeof value === 'string' ? value : '');
+  if (m && +m[2] >= 1 && +m[2] <= 12) return { year: +m[1], month: +m[2] };
+  const now = new Date();
+  return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+}
 
 export async function GET(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1; // 1-12
-    const currentYear = now.getFullYear();
+    const { searchParams } = new URL(req.url);
+    const { year, month } = targetMonth(searchParams.get('month'));
 
-    // Aggregate expenses for the current month
-    const startDate = new Date(currentYear, currentMonth - 1, 1);
-    const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59);
+    // Expense dates are stored at UTC midnight
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month, 1));
 
     const [budgets, expensesAgg] = await Promise.all([
-      Budget.find({ userId, period: 'monthly', month: currentMonth, year: currentYear })
+      Budget.find({ userId, period: 'monthly', month, year })
         .populate('categoryId', 'name icon color')
         .lean(),
       // aggregate() does not cast types, so userId must be an ObjectId here
       Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId), date: { $gte: startDate, $lte: endDate } } },
+        { $match: { userId: new mongoose.Types.ObjectId(userId), date: { $gte: startDate, $lt: endDate } } },
         { $group: { _id: "$categoryId", totalSpent: { $sum: "$amount" } } }
       ]),
     ]);
@@ -36,12 +45,9 @@ export async function GET(req) {
       .filter(budget => budget.categoryId)
       .map(budget => {
         const spent = spentByCategory.get(budget.categoryId._id.toString()) || 0;
-        return {
-          ...budget,
-          spent,
-          percentageUsed: (spent / budget.amount) * 100
-        };
-      });
+        return { ...budget, spent, percentageUsed: (spent / budget.amount) * 100 };
+      })
+      .sort((a, b) => b.percentageUsed - a.percentageUsed);
 
     return NextResponse.json({ budgets: budgetStats }, { status: 200 });
   } catch (error) {
@@ -50,29 +56,48 @@ export async function GET(req) {
   }
 }
 
+// Create or update the budget for a category in a month
 export async function POST(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    const { categoryId, amount, period = 'monthly', month, year } = await req.json();
+    const body = await req.json().catch(() => ({}));
 
-    if (!categoryId || !amount) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+    const amount = parseAmount(body.amount);
+    if (amount === null) return NextResponse.json({ error: 'Please enter a budget greater than 0' }, { status: 400 });
 
-    const now = new Date();
-    const targetMonth = month || now.getMonth() + 1;
-    const targetYear = year || now.getFullYear();
+    const category = await resolveCategory(userId, body.categoryId);
+    if (category.error) return NextResponse.json({ error: category.error }, { status: 400 });
+
+    const { year, month } = targetMonth(body.month);
 
     const budget = await Budget.findOneAndUpdate(
-      { userId, categoryId, period, month: targetMonth, year: targetYear },
-      { amount },
+      { userId, categoryId: category.categoryId, period: 'monthly', month, year },
+      { $set: { amount } },
       { new: true, upsert: true }
     ).populate('categoryId', 'name icon color');
 
     return NextResponse.json({ budget }, { status: 201 });
   } catch (error) {
     console.error('Budget POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE /api/budgets?id=<budgetId>
+export async function DELETE(req) {
+  try {
+    await dbConnect();
+    const userId = req.headers.get('x-user-id');
+    const id = new URL(req.url).searchParams.get('id');
+    if (!isObjectId(id)) return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
+
+    const budget = await Budget.findOneAndDelete({ _id: id, userId });
+    if (!budget) return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
+
+    return NextResponse.json({ message: 'Budget deleted' }, { status: 200 });
+  } catch (error) {
+    console.error('Budget DELETE error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

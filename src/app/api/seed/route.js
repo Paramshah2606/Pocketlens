@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin';
 import dbConnect from '@/lib/db';
 import Category from '@/models/Category';
 
 // WARNING: Do NOT run this on a live database that already has expense data.
 // Re-seeding creates new default category _id values, which will break existing
 // Expense.categoryId references. Only use on a fresh database or after a full reset.
-export async function GET() {
+export async function GET(req) {
+  // Changes data for every user: only callable with the ADMIN_SECRET header
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   try {
     await dbConnect();
 

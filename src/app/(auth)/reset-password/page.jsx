@@ -20,12 +20,12 @@ function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  const [userId, setUserId] = useState("")
+  const [email, setEmail] = useState("")
   const [token, setToken] = useState("")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setUserId(sessionStorage.getItem("reset_userId") || "")
+      setEmail(sessionStorage.getItem("reset_email") || "")
       setToken(sessionStorage.getItem("reset_token") || "")
     }
   }, [])
@@ -34,7 +34,7 @@ function ResetPasswordForm() {
   const password = watch("newPassword")
 
   const onSubmit = async (data) => {
-    if (!userId || !token) {
+    if (!email || !token) {
       setError("Invalid reset link. Please try again.")
       return
     }
@@ -47,7 +47,7 @@ function ResetPasswordForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          userId, 
+          email, 
           resetToken: token, 
           newPassword: data.newPassword 
         }),
@@ -122,7 +122,7 @@ function ResetPasswordForm() {
                   placeholder="••••••••"
                   {...register("newPassword", { 
                     required: "Password is required",
-                    minLength: { value: 6, message: "At least 6 characters" }
+                    minLength: { value: 8, message: "At least 8 characters" }
                   })}
                 />
                 <button

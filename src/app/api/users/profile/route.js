@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import User from '@/models/User';
+import User, { PRIVATE_USER_FIELDS } from '@/models/User';
+import { cleanString } from '@/lib/validate';
+
+const THEMES = ['light', 'dark', 'system'];
 
 export async function GET(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
-    const user = await User.findById(userId).select('-password -otp -otpExpiry');
-    
+    const user = await User.findById(userId).select(PRIVATE_USER_FIELDS).lean();
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -28,24 +26,31 @@ export async function PUT(req) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const body = await req.json().catch(() => ({}));
 
-    const { name, theme, currency } = await req.json();
-    
     const updateData = {};
-    if (name) updateData.name = name;
-    if (theme) updateData.theme = theme;
-    if (currency) updateData.currency = currency;
+    if (body.name !== undefined) {
+      const name = cleanString(body.name, { max: 60 });
+      if (!name) return NextResponse.json({ error: 'Name must be 1–60 characters' }, { status: 400 });
+      updateData.name = name;
+    }
+    if (body.theme !== undefined) {
+      if (!THEMES.includes(body.theme)) return NextResponse.json({ error: 'Invalid theme' }, { status: 400 });
+      updateData.theme = body.theme;
+    }
+    if (body.currency !== undefined) {
+      if (typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency)) {
+        return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
+      }
+      updateData.currency = body.currency;
+    }
 
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
       { new: true, runValidators: true }
-    ).select('-password -otp -otpExpiry');
-    
+    ).select(PRIVATE_USER_FIELDS).lean();
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

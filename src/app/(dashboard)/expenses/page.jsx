@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Loader2, Calendar, Receipt, Edit2, Trash2, Filter, ArrowUpDown, Search, ChevronDown, Tag, Layers } from "lucide-react"
+import { Plus, Loader2, Calendar, Receipt, Edit2, Trash2, Filter, ArrowUpDown, Search, ChevronDown, Tag, Layers, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,12 +11,14 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
 import { openAddExpenseModal } from "@/store/uiSlice"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { localDateKey } from "@/lib/dates"
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFilterVisible, setIsFilterVisible] = useState(false)
+  const [totalAmount, setTotalAmount] = useState(0)
   
   const [pagination, setPagination] = useState({
     total: 0,
@@ -49,18 +51,24 @@ export default function ExpensesPage() {
     }
   }
 
+  // Current filters as query params; "today" lets the server use the user's own calendar
+  const buildQuery = (extra = {}) => {
+    const queryParams = new URLSearchParams({ today: localDateKey() })
+    Object.entries({ ...filters, ...extra }).forEach(([key, value]) => {
+      if (value && value !== 'all') {
+        queryParams.set(key, value)
+      }
+    })
+    return queryParams.toString()
+  }
+
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const queryParams = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== 'all') {
-          queryParams.append(key, value)
-        }
-      })
-      const res = await fetch(`/api/expenses?${queryParams.toString()}`)
+      const res = await fetch(`/api/expenses?${buildQuery()}`)
       const data = await res.json()
       setExpenses(data.expenses || [])
+      setTotalAmount(data.totalAmount || 0)
       setPagination(data.pagination || { total: 0, page: 1, totalPages: 1, limit: 10 })
     } catch (error) {
       console.error("Failed to fetch data", error)
@@ -106,9 +114,20 @@ export default function ExpensesPage() {
           <p className="hidden sm:block text-slate-500 mt-1">Track and manage your daily spending.</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <a
+            href={`/api/expenses?${buildQuery({ format: 'csv', page: '' })}`}
+            download
+            aria-label="Export expenses as CSV"
+            title="Export the expenses matching your filters as a CSV file"
+            className={`inline-flex items-center justify-center rounded-full h-9 sm:h-11 px-3 sm:px-5 border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all ${pagination.total ? '' : 'pointer-events-none opacity-50'}`}
+          >
+            <Download className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Export</span>
+          </a>
           <Button 
             variant="outline" 
             size="sm"
+            aria-label="Filters"
+            aria-expanded={isFilterVisible}
             onClick={() => setIsFilterVisible(!isFilterVisible)}
             className={`rounded-full h-9 sm:h-11 px-3 sm:px-5 border-slate-200 transition-all ${isFilterVisible ? 'bg-blue-50 border-blue-200 text-blue-600' : ''}`}
           >
@@ -131,7 +150,7 @@ export default function ExpensesPage() {
                 </Label>
                 <div className="relative group">
                   <select 
-                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
                     value={filters.dateType}
                     onChange={(e) => handleFilterChange('dateType', e.target.value)}
                   >
@@ -179,7 +198,7 @@ export default function ExpensesPage() {
                 </Label>
                 <div className="relative group">
                   <select 
-                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
                     value={filters.categoryId}
                     onChange={(e) => handleFilterChange('categoryId', e.target.value)}
                   >
@@ -198,7 +217,7 @@ export default function ExpensesPage() {
                 </Label>
                 <div className="relative group">
                   <select 
-                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     value={filters.subCategoryId}
                     onChange={(e) => handleFilterChange('subCategoryId', e.target.value)}
                     disabled={filters.categoryId === 'all'}
@@ -218,7 +237,7 @@ export default function ExpensesPage() {
                 </Label>
                 <div className="relative group">
                   <select 
-                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                    className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer hover:border-slate-300 transition-all"
                     value={`${filters.sortBy}_${filters.sortOrder}`}
                     onChange={(e) => {
                       const [sortBy, sortOrder] = e.target.value.split('_')
@@ -264,8 +283,18 @@ export default function ExpensesPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {pagination.total > 0 && (
+            <div className="flex items-center justify-between gap-3 px-1 text-sm">
+              <span className="text-slate-500">
+                {pagination.total} expense{pagination.total === 1 ? "" : "s"}
+              </span>
+              <span className="font-semibold text-slate-900">
+                Total <span className="text-red-500">{formatCurrency(totalAmount)}</span>
+              </span>
+            </div>
+          )}
           {expenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-16 text-center">
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 sm:p-16 text-center">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm mb-6 text-slate-400">
                 <Receipt className="h-10 w-10" />
               </div>
@@ -341,8 +370,8 @@ export default function ExpensesPage() {
 
               {/* Pagination Controls */}
               {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mt-8">
-                  <p className="text-sm text-slate-500 font-medium">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mt-8">
+                  <p className="text-sm text-slate-500 font-medium text-center sm:text-left">
                     Showing <span className="text-slate-900">{(pagination.page - 1) * pagination.limit + 1}</span> to <span className="text-slate-900">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="text-slate-900">{pagination.total}</span> expenses
                   </p>
                   <div className="flex gap-2">

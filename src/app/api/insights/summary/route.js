@@ -24,7 +24,7 @@ export async function GET(req) {
     }
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    const matchQuery = { userId: userObjectId, date: { $gte: getRangeStart(timeRange) } };
+    const matchQuery = { userId: userObjectId, date: { $gte: getRangeStart(timeRange, searchParams.get('today')) } };
 
     // Category-wise distribution, or sub-category drill-down for one category
     const distributionPipeline = categoryId

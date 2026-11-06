@@ -1,55 +1,37 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import { signToken } from '@/lib/jwt';
-import { cookies } from 'next/headers';
+import { startSession } from '@/lib/session';
+import { checkOtp } from '@/lib/otp';
+import { normalizeEmail, EMAIL_COLLATION } from '@/lib/validate';
 
+// Verifies the signup email code and logs the user in
 export async function POST(req) {
   try {
     await dbConnect();
-    const { email, otp } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const email = normalizeEmail(body.email);
 
-    if (!email || !otp) {
-      return NextResponse.json({ error: 'Missing email or OTP' }, { status: 400 });
+    if (!email || typeof body.otp !== 'string') {
+      return NextResponse.json({ error: 'Missing email or code' }, { status: 400 });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const user = await User.findOne({ email }).collation(EMAIL_COLLATION);
+    if (!user || user.isVerified) {
+      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
     }
 
-    if (user.isVerified) {
-      return NextResponse.json({ error: 'User is already verified' }, { status: 400 });
-    }
-
-    if (user.otp !== otp) {
-      return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 });
-    }
-
-    if (new Date() > new Date(user.otpExpiry)) {
-      return NextResponse.json({ error: 'OTP has expired' }, { status: 400 });
+    const result = await checkOtp(user, body.otp);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
     user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpiry = undefined;
     await user.save();
+    await startSession(user);
 
-    // Auto login after verification
-    const token = signToken({ userId: user._id, email: user.email });
-    
-    // Use cookies() from next/headers to await operations in Next.js 15
-    const cookieStore = await cookies();
-    cookieStore.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
-    });
-
-    return NextResponse.json({ 
-      message: 'Email verified successfully', 
+    return NextResponse.json({
+      message: 'Email verified successfully',
       user: { id: user._id, name: user.name, email: user.email }
     }, { status: 200 });
 

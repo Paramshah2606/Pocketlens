@@ -1,26 +1,24 @@
 import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Income from '@/models/Income';
 import { INCOME_SOURCE_IDS } from '@/lib/incomeSources';
+import { isObjectId, optionalString, parseAmount, parseDate } from '@/lib/validate';
 
 export async function PUT(req, { params }) {
   try {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { id } = await params;
-    if (!mongoose.isValidObjectId(id)) {
+    if (!isObjectId(id)) {
       return NextResponse.json({ error: 'Income not found' }, { status: 404 });
     }
-    const { amount, source, description, date } = await req.json();
+    const { amount, source, description, date } = await req.json().catch(() => ({}));
 
     // Only these fields may change (never userId)
     const updates = {};
     if (amount !== undefined) {
-      const value = Number(amount);
-      if (!Number.isFinite(value) || value <= 0) {
-        return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 });
-      }
+      const value = parseAmount(amount);
+      if (value === null) return NextResponse.json({ error: 'Please enter an amount greater than 0' }, { status: 400 });
       updates.amount = value;
     }
     if (source !== undefined) {
@@ -29,8 +27,16 @@ export async function PUT(req, { params }) {
       }
       updates.source = source;
     }
-    if (description !== undefined) updates.description = description;
-    if (date !== undefined) updates.date = new Date(date);
+    if (description !== undefined) {
+      const value = optionalString(description, { max: 200 });
+      if (value === null) return NextResponse.json({ error: 'Description is too long' }, { status: 400 });
+      updates.description = value;
+    }
+    if (date !== undefined) {
+      const value = parseDate(date);
+      if (!value) return NextResponse.json({ error: 'Please choose a valid date' }, { status: 400 });
+      updates.date = value;
+    }
 
     const income = await Income.findOneAndUpdate({ _id: id, userId }, { $set: updates }, { new: true }).lean();
     if (!income) return NextResponse.json({ error: 'Income not found' }, { status: 404 });
@@ -47,7 +53,7 @@ export async function DELETE(req, { params }) {
     await dbConnect();
     const userId = req.headers.get('x-user-id');
     const { id } = await params;
-    if (!mongoose.isValidObjectId(id)) {
+    if (!isObjectId(id)) {
       return NextResponse.json({ error: 'Income not found' }, { status: 404 });
     }
 

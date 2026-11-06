@@ -1,9 +1,9 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-const Button = React.forwardRef(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
+const Button = React.forwardRef(({ className, variant = "default", size = "default", asChild = false, children, ...props }, ref) => {
   const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-  
+
   const variants = {
     default: "bg-primary text-primary-foreground hover:bg-primary/90",
     destructive: "bg-red-500 text-white hover:bg-red-500/90",
@@ -20,12 +20,22 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
     icon: "h-10 w-10",
   }
 
+  const classes = cn(baseStyles, variants[variant], sizes[size], className)
+
+  // asChild: style the single child element (e.g. a <Link>) as a button instead of
+  // wrapping it in a <button>, which would nest a link inside a button (invalid HTML).
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, {
+      ...props,
+      ref,
+      className: cn(classes, children.props.className),
+    })
+  }
+
   return (
-    <button
-      className={cn(baseStyles, variants[variant], sizes[size], className)}
-      ref={ref}
-      {...props}
-    />
+    <button className={classes} ref={ref} {...props}>
+      {children}
+    </button>
   )
 })
 Button.displayName = "Button"

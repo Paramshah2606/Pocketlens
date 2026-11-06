@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label"
 import { INCOME_SOURCES } from "@/lib/incomeSources"
 import { closeAddExpenseModal, triggerRefresh } from "@/store/uiSlice"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { localDateKey, entryDateKey } from "@/lib/dates"
+import { toast } from "@/lib/toast"
 
-const today = () => new Date().toISOString().split("T")[0]
+const today = () => localDateKey()
 
 // Add / edit an income entry (salary, freelance, ...). Rendered inside the add modal.
 export default function IncomeForm({ editingIncome, presetDate }) {
@@ -34,7 +36,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
         amount: editingIncome.amount,
         source: editingIncome.source || "other",
         description: editingIncome.description || "",
-        date: new Date(editingIncome.date).toISOString().split("T")[0],
+        date: entryDateKey(editingIncome.date),
       })
     } else {
       reset({ amount: "", source: "salary", description: "", date: presetDate || today() })
@@ -54,6 +56,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `Failed to ${editingIncome ? "update" : "add"} income`)
       }
+      toast.success(editingIncome ? "Income updated" : "Income added")
       dispatch(triggerRefresh())
       dispatch(closeAddExpenseModal())
     } catch (error) {

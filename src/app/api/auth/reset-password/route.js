@@ -1,37 +1,47 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import bcrypt from 'bcryptjs';
+import { safeTokenEqual } from '@/lib/otp';
+import { forgetSessionState } from '@/lib/sessionCheck';
+import { normalizeEmail, isValidPassword, EMAIL_COLLATION } from '@/lib/validate';
 
 export async function POST(req) {
   try {
     await dbConnect();
-    const { userId, resetToken, newPassword } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const email = normalizeEmail(body.email);
+    const { resetToken, newPassword } = body;
 
-    if (!userId || !resetToken || !newPassword) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!email || typeof resetToken !== 'string') {
+      return NextResponse.json({ error: 'Your reset link is incomplete. Please start again.' }, { status: 400 });
+    }
+    if (!isValidPassword(newPassword)) {
+      return NextResponse.json({ error: 'Password must be 8–128 characters' }, { status: 400 });
     }
 
-    const user = await User.findById(userId);
-    console.log("Reset attempt for user:", userId);
-    console.log("Received token:", resetToken);
-    console.log("Stored token:", user?.resetToken);
-
-    if (!user || user.resetToken !== resetToken) {
-      return NextResponse.json({ error: 'Invalid or expired reset token' }, { status: 400 });
+    const user = await User.findOne({ email }).collation(EMAIL_COLLATION);
+    if (!user || !user.resetToken || !safeTokenEqual(resetToken, user.resetToken)) {
+      return NextResponse.json({ error: 'Invalid or expired reset session. Please start again.' }, { status: 400 });
+    }
+    if (!user.resetTokenExpiry || Date.now() > user.resetTokenExpiry.getTime()) {
+      user.resetToken = undefined;
+      user.resetTokenExpiry = undefined;
+      await user.save();
+      return NextResponse.json({ error: 'Your reset session has expired. Please start again.' }, { status: 400 });
     }
 
-    if (new Date() > new Date(user.resetTokenExpiry)) {
-      return NextResponse.json({ error: 'Reset token has expired' }, { status: 400 });
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordChangedAt = new Date();
     user.resetToken = undefined;
     user.resetTokenExpiry = undefined;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
+    // A completed reset also proves ownership of the email
+    user.isVerified = true;
     await user.save();
+    // Tokens issued before passwordChangedAt are now rejected (signs out other devices)
+    forgetSessionState(user._id);
 
     return NextResponse.json({ message: 'Password reset successfully' }, { status: 200 });
 

@@ -1,45 +1,37 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import crypto from 'crypto';
+import { checkOtp } from '@/lib/otp';
+import { normalizeEmail, EMAIL_COLLATION } from '@/lib/validate';
 
+// Exchanges a valid reset code for a short-lived reset token
 export async function POST(req) {
   try {
     await dbConnect();
-    const { userId, otp } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const email = normalizeEmail(body.email);
 
-    if (!userId || !otp) {
-      return NextResponse.json({ error: 'Missing userId or OTP' }, { status: 400 });
+    if (!email || typeof body.otp !== 'string') {
+      return NextResponse.json({ error: 'Missing email or code' }, { status: 400 });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findOne({ email }).collation(EMAIL_COLLATION);
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
     }
 
-    if (user.otp !== otp) {
-      return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 });
+    const result = await checkOtp(user, body.otp);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    if (new Date() > new Date(user.otpExpiry)) {
-      return NextResponse.json({ error: 'OTP has expired' }, { status: 400 });
-    }
-
-    // Generate a reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-    user.otp = undefined;
-    user.otpExpiry = undefined;
     user.resetToken = resetToken;
-    user.resetTokenExpiry = resetTokenExpiry;
+    user.resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
     await user.save();
-    console.log("Generated reset token for user:", user._id, resetToken);
 
-    return NextResponse.json({ 
-      message: 'OTP verified successfully',
-      resetToken
-    }, { status: 200 });
+    return NextResponse.json({ message: 'Code verified', resetToken }, { status: 200 });
 
   } catch (error) {
     console.error('Verify reset OTP error:', error);

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -16,6 +16,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
+  // Set when the app sent the user here because their session ran out
+  const sessionExpired = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).has("expired"),
+    () => false
+  )
   
   const { register, handleSubmit, formState: { errors } } = useForm()
 
@@ -34,14 +40,15 @@ export default function LoginPage() {
 
       if (!res.ok) {
         if (res.status === 403) {
-          router.push(`/verify?email=${encodeURIComponent(data.email)}`)
+          router.push(`/verify?email=${encodeURIComponent(resData.email || data.email)}`)
           return
         }
         throw new Error(resData.error || "Failed to login")
       }
 
-      router.push("/dashboard")
-      router.refresh()
+      // The dashboard is fetched fresh with the new cookie; an extra refresh() here
+      // races the navigation and causes failed RSC requests
+      router.replace("/dashboard")
     } catch (err) {
       setError(err.message)
     } finally {
@@ -83,6 +90,11 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {sessionExpired && !error && (
+              <div role="status" className="rounded-lg bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800 font-medium">
+                Your session has expired. Please log in again.
+              </div>
+            )}
             {error && (
               <div className="rounded-lg bg-red-50/80 border border-red-100 p-4 text-sm text-red-600 font-medium">
                 {error}

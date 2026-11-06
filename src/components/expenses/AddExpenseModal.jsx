@@ -12,6 +12,8 @@ import { useDispatch, useSelector } from "react-redux"
 import { closeAddExpenseModal, setModalType, triggerRefresh } from "@/store/uiSlice"
 import IncomeForm from "@/components/income/IncomeForm"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { localDateKey, entryDateKey } from "@/lib/dates"
+import { toast } from "@/lib/toast"
 
 export default function AddExpenseModal() {
   const dispatch = useDispatch()
@@ -41,7 +43,7 @@ export default function AddExpenseModal() {
   
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
-      date: new Date().toISOString().split('T')[0]
+      date: localDateKey()
     }
   })
   
@@ -61,14 +63,14 @@ export default function AddExpenseModal() {
         setValue("categoryId", editingExpense.categoryId?._id || editingExpense.categoryId || "")
         setValue("subCategoryId", editingExpense.subCategoryId?._id || editingExpense.subCategoryId || null)
         setValue("description", editingExpense.description || "")
-        setValue("date", new Date(editingExpense.date).toISOString().split('T')[0])
+        setValue("date", entryDateKey(editingExpense.date))
       } else {
         reset({
           amount: "",
           categoryId: "",
           subCategoryId: null,
           description: "",
-          date: presetDate || new Date().toISOString().split('T')[0]
+          date: presetDate || localDateKey()
         })
         setSelectedCategory(null)
       }
@@ -110,14 +112,18 @@ export default function AddExpenseModal() {
         body: JSON.stringify(data)
       })
       
-      if (!res.ok) throw new Error(`Failed to ${editingExpense ? 'update' : 'add'} expense`)
-      
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Failed to ${editingExpense ? 'update' : 'add'} expense`)
+      }
+
+      toast.success(editingExpense ? "Expense updated" : "Expense added")
       dispatch(triggerRefresh())
       dispatch(closeAddExpenseModal())
       reset()
       setSelectedCategory(null)
     } catch (error) {
-      console.error(error)
+      toast.error(error.message || "Something went wrong. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -136,16 +142,16 @@ export default function AddExpenseModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCatName, icon: newCatIcon, color: randomColor })
       })
-      if(res.ok) {
-        const data = await res.json()
-        await fetchCategories()
-        handleCategorySelect(data.category)
-        setIsCreatingCategory(false)
-        setNewCatName("")
-        setNewCatIcon("🏷️")
-      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Couldn't create the category")
+      await fetchCategories()
+      handleCategorySelect(data.category)
+      setIsCreatingCategory(false)
+      setNewCatName("")
+      setNewCatIcon("🏷️")
+      toast.success(`Category "${data.category.name}" created`)
     } catch (error) {
-      console.error("Failed to create category", error)
+      toast.error(error.message)
     } finally {
       setIsSubmittingCat(false)
     }
@@ -165,21 +171,31 @@ export default function AddExpenseModal() {
           parentCategoryId: selectedCategory._id
         })
       })
-      if (res.ok) {
-        const data = await res.json()
-        await fetchCategories()
-        // categoryId stays the same — no cloning; selectedCategory re-syncs via useEffect
-        setValue("subCategoryId", data.category._id)
-        setIsCreatingSub(false)
-        setNewSubName("")
-        setNewSubIcon("✨")
-      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Couldn't create the sub-category")
+      await fetchCategories()
+      // categoryId stays the same — no cloning; selectedCategory re-syncs via useEffect
+      setValue("subCategoryId", data.category._id)
+      setIsCreatingSub(false)
+      setNewSubName("")
+      setNewSubIcon("✨")
     } catch (error) {
-      console.error("Failed to create subcategory", error)
+      toast.error(error.message)
     } finally {
       setIsSubmittingSub(false)
     }
   }
+
+  // Escape closes the sheet (unless a confirmation dialog is open on top of it)
+  useEffect(() => {
+    if (!isAddExpenseModalOpen) return
+    const onKey = (e) => {
+      if (e.key !== "Escape" || document.querySelector('[role="alertdialog"]')) return
+      dispatch(closeAddExpenseModal())
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [isAddExpenseModalOpen, dispatch])
 
   if (!isAddExpenseModalOpen) return null
 
@@ -195,14 +211,22 @@ export default function AddExpenseModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/40 backdrop-blur-sm transition-all md:items-center md:justify-center">
-      <div className="w-full max-h-[92dvh] overflow-y-auto animate-in slide-in-from-bottom-full rounded-t-3xl bg-white p-6 shadow-2xl md:max-w-lg md:rounded-3xl border border-slate-100">
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/40 backdrop-blur-sm transition-all md:items-center md:justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) dispatch(closeAddExpenseModal()) }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-sheet-title"
+        className="w-full max-h-[92dvh] overflow-y-auto overscroll-contain animate-in slide-in-from-bottom-full rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl md:max-w-lg md:rounded-3xl md:pb-6 border border-slate-100"
+      >
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+            <h2 id="add-sheet-title" className="text-xl font-bold text-slate-900">{title}</h2>
             <p className="text-sm text-slate-500">{subtitle}</p>
           </div>
-          <Button variant="ghost" size="icon" className="rounded-full bg-slate-100 hover:bg-slate-200" onClick={() => {
+          <Button aria-label="Close" variant="ghost" size="icon" className="rounded-full bg-slate-100 hover:bg-slate-200" onClick={() => {
             if (isCreatingCategory && !isIncome) {
               setIsCreatingCategory(false)
             } else {
@@ -276,10 +300,15 @@ export default function AddExpenseModal() {
                 id="amount" 
                 type="number" 
                 step="0.01" 
+                min="0"
+                inputMode="decimal"
                 className="pl-9 h-14 text-2xl font-bold rounded-2xl bg-slate-50/50 border-slate-200 focus-visible:ring-primary/20 transition-all" 
                 placeholder="0.00" 
                 autoFocus
-                {...register("amount", { required: "Amount is required" })}
+                {...register("amount", {
+                  required: "Amount is required",
+                  validate: (v) => Number(v) > 0 || "Amount must be greater than 0",
+                })}
               />
             </div>
             {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}

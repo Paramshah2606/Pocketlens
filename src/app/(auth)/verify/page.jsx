@@ -20,14 +20,11 @@ function VerifyForm() {
   const isReset = searchParams.get("isReset") === "true"
   
   const [email, setEmail] = useState(searchParams.get("email") || "")
-  const [userId, setUserId] = useState(searchParams.get("userId") || "")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedEmail = sessionStorage.getItem("reset_email")
-      const storedUserId = sessionStorage.getItem("reset_userId")
       if (isReset && storedEmail) setEmail(storedEmail)
-      if (isReset && storedUserId) setUserId(storedUserId)
     }
   }, [isReset])
   
@@ -44,7 +41,7 @@ function VerifyForm() {
     
     try {
       const endpoint = isReset ? "/api/auth/verify-reset-otp" : "/api/auth/verify"
-      const payload = isReset ? { userId, otp: data.otp } : { email, otp: data.otp }
+      const payload = { email, otp: data.otp }
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -63,8 +60,9 @@ function VerifyForm() {
         sessionStorage.setItem("reset_token", resData.resetToken)
         router.push(`/reset-password`)
       } else {
-        router.push("/dashboard")
-        router.refresh()
+        // The dashboard is fetched fresh with the new cookie; an extra refresh() here
+        // races the navigation and causes failed RSC requests
+        router.replace("/dashboard")
       }
     } catch (err) {
       setError(err.message)
@@ -74,7 +72,7 @@ function VerifyForm() {
   }
 
   const handleResend = async () => {
-    if (!email && !userId) {
+    if (!email) {
       setError("Information missing to resend OTP.")
       return
     }
@@ -87,7 +85,7 @@ function VerifyForm() {
       const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, email }),
+        body: JSON.stringify({ email }),
       })
       
       const resData = await res.json()

@@ -22,6 +22,7 @@ Required in `.env.local`:
 - `JWT_SECRET` — Secret for signing JWTs
 - `EMAIL_USER` — Gmail address for OTP emails (optional; mocked if absent)
 - `EMAIL_PASS` — Gmail app password
+- `ADMIN_SECRET` — optional, 16+ chars; enables the maintenance routes (`/api/seed`, `/api/migrate-categories`, `/api/cleanup-categories`) when sent as the `x-admin-secret` header. Without it they return 404.
 
 ## Architecture
 
@@ -31,17 +32,18 @@ Required in `.env.local`:
 
 - `src/app/(auth)/` — Unauthenticated pages: login, signup, verify (OTP), forgot-password, reset-password
 - `src/app/(dashboard)/` — Authenticated pages: dashboard, expenses, budgets, settings; shares a sidebar/nav layout (`layout.jsx`)
-- `src/app/api/` — API routes grouped by resource: `auth/*`, `expenses/`, `expenses/[id]`, `budgets/`, `categories/`, `users/profile`, `insights/summary`, `seed/`
+- `src/app/api/` — API routes grouped by resource: `auth/*`, `expenses/`, `expenses/[id]`, `budgets/`, `categories/`, `users/profile`, `insights/summary`, `income/`, `income/[id]`, `calendar/`, `seed/`
 
 ### Middleware / Auth
 
-Middleware lives in **`src/proxy.js`** (not the standard `middleware.js`). It runs on the Edge Runtime and uses `jose` (not `jsonwebtoken`) for JWT verification — `jsonwebtoken` requires Node.js crypto which is unavailable in Edge.
+Middleware lives in **`src/proxy.js`** (Next 16 renamed `middleware.js` to `proxy.js`). It runs on the Node.js runtime and verifies the JWT with `jose`.
 
 Auth flow:
 1. JWT is stored in an httpOnly cookie named `token` (7-day expiry).
-2. The proxy verifies the cookie on every request, redirects unauthenticated users to `/login`, and injects the `x-user-id` header for downstream API routes.
+2. The proxy verifies the cookie on every request (all `/api/*` paths are always matched), redirects unauthenticated users to `/login`, strips any client-supplied `x-user-id`, and injects the real one for downstream API routes. Tokens issued before the user's `passwordChangedAt` are rejected (`src/lib/sessionCheck.js`, cached ~60s).
 3. API routes read the authenticated user via `req.headers.get('x-user-id')` — there is no `req.user` or session object.
-4. Server-side signing/verifying (non-Edge) uses `src/lib/jwt.js` with `jsonwebtoken`.
+4. Login/verify set the cookie via `src/lib/session.js` (also sets a readable `logged_in=1` hint cookie used only for UI). Signing uses `src/lib/jwt.js` with `jsonwebtoken` (HS256).
+5. Request bodies are untrusted JSON: validate types with `src/lib/validate.js` before using values in queries (prevents NoSQL operator injection), and check category ownership with `src/lib/categoryAccess.js`. OTP handling (attempt limits, resend cooldown) lives in `src/lib/otp.js`.
 
 Signup requires email OTP verification via `nodemailer` before login is permitted.
 

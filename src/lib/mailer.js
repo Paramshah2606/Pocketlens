@@ -1,22 +1,25 @@
 import nodemailer from 'nodemailer';
+import { escapeHtml } from '@/lib/validate';
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
-  secure: false,
+  secure: false, // STARTTLS; certificates are verified (never disable that, it exposes EMAIL_PASS)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  tls: {
-    rejectUnauthorized: false
-  }
 });
 
 export const sendOTP = async (email, otp) => {
   if (!process.env.EMAIL_USER) {
-    console.warn('Email credentials not set. Mocking email send:', { email, otp });
-    return true;
+    // Development without email credentials: print the code only outside production
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[dev] Email not configured. Code for ${email}: ${otp}`);
+      return true;
+    }
+    console.error('EMAIL_USER is not configured; cannot send verification code');
+    return false;
   }
 
   const mailOptions = {
@@ -28,7 +31,7 @@ export const sendOTP = async (email, otp) => {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2>Welcome to PocketLens!</h2>
         <p>Your verification code is:</p>
-        <h1 style="font-size: 36px; letter-spacing: 5px; color: #3b82f6;">${otp}</h1>
+        <h1 style="font-size: 36px; letter-spacing: 5px; color: #3b82f6;">${escapeHtml(otp)}</h1>
         <p>This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
       </div>
     `,
@@ -36,29 +39,34 @@ export const sendOTP = async (email, otp) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully");
     return true;
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Error sending email:', error.message);
     return false;
   }
 };
 
+// All values are user input: escape them and keep subjects to one line
 export const sendContactEmail = async (contactData) => {
   if (!process.env.EMAIL_USER) {
-    console.warn('Email credentials not set. Mocking contact email send:', contactData);
+    console.warn('Email credentials not set. Contact message saved but not emailed.');
     return true;
   }
 
-  const { name, email, subject, message } = contactData;
+  const name = escapeHtml(contactData.name);
+  const email = escapeHtml(contactData.email);
+  const subject = escapeHtml(contactData.subject);
+  const message = escapeHtml(contactData.message).replace(/\n/g, '<br>');
+  const plainSubject = String(contactData.subject).replace(/[\r\n]+/g, ' ').slice(0, 120);
 
   // 1. Email to Admin
   const adminMailOptions = {
     from: `"PocketLens Support" <${process.env.EMAIL_USER}>`,
-    to: process.env.EMAIL_USER, // Admin receives it
-    subject: `New Contact Inquiry: ${subject}`,
+    to: process.env.EMAIL_USER,
+    replyTo: contactData.email,
+    subject: `New Contact Inquiry: ${plainSubject}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 12px;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
         <h2 style="color: #1e293b;">New Inquiry Received</h2>
         <p><strong>From:</strong> ${name} (${email})</p>
         <p><strong>Subject:</strong> ${subject}</p>
@@ -70,17 +78,17 @@ export const sendContactEmail = async (contactData) => {
     `,
   };
 
-  // 2. Confirmation to Customer
+  // 2. Confirmation to the sender. Deliberately does not echo their subject or message,
+  // so the form can't be used to send arbitrary content from our address.
   const customerMailOptions = {
     from: `"PocketLens Support" <${process.env.EMAIL_USER}>`,
-    to: email,
+    to: contactData.email,
     subject: `We've received your message - PocketLens`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center;">
         <h2 style="color: #3b82f6;">Thanks for reaching out!</h2>
-        <p style="color: #475569; font-size: 16px;">Hi ${name}, we've received your inquiry regarding "<strong>${subject}</strong>".</p>
-        <p style="color: #475569; font-size: 16px;">Our team will get back to you as soon as possible.</p>
-        <div style="margin-top: 30px; padding-top: 20px; border-t: 1px solid #e2e8f0;">
+        <p style="color: #475569; font-size: 16px;">We've received your message and our team will get back to you as soon as possible.</p>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
           <p style="font-size: 14px; color: #94a3b8;">PocketLens - Smart Expense Tracking</p>
         </div>
       </div>
@@ -94,7 +102,7 @@ export const sendContactEmail = async (contactData) => {
     ]);
     return true;
   } catch (error) {
-    console.error('Error sending contact emails:', error);
+    console.error('Error sending contact emails:', error.message);
     return false;
   }
 };

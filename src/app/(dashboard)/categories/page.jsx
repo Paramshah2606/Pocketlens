@@ -114,7 +114,7 @@ function DeleteDialog({ target, categories, onClose, onDeleted }) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="delete-cat-title">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:items-center" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="delete-cat-title">
       <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <h2 id="delete-cat-title" className="text-lg font-bold">
@@ -133,7 +133,7 @@ function DeleteDialog({ target, categories, onClose, onDeleted }) {
             <select
               value={moveTo}
               onChange={(e) => setMoveTo(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base sm:text-sm font-medium"
             >
               <option value="">Select a category…</option>
               {moveOptions.map((c) => (

@@ -12,6 +12,7 @@ import Link from "next/link"
 import { openAddExpenseModal, openAddIncomeModal } from "@/store/uiSlice"
 import { getIncomeSource } from "@/lib/incomeSources"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { localDateKey } from "@/lib/dates"
 
 export default function DashboardPage() {
   const [data, setData] = useState(null)
@@ -37,7 +38,7 @@ export default function DashboardPage() {
   async function fetchInsights() {
     setIsLoading(true)
     try {
-      const queryParams = new URLSearchParams({ timeRange })
+      const queryParams = new URLSearchParams({ timeRange, today: localDateKey() })
       if (drillDownCategoryId) {
         queryParams.append("categoryId", drillDownCategoryId)
       }
@@ -138,7 +139,7 @@ export default function DashboardPage() {
         </div>
         <div className="relative shrink-0">
           <select 
-            className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-semibold rounded-2xl focus:ring-blue-500 focus:border-blue-500 block w-28 sm:w-40 p-2.5 sm:p-3.5 pr-8 sm:pr-10 cursor-pointer transition-all hover:bg-slate-100"
+            className="appearance-none bg-slate-50 border border-slate-200 text-slate-900 text-base sm:text-sm font-semibold rounded-2xl focus:ring-blue-500 focus:border-blue-500 block w-28 sm:w-40 p-2.5 sm:p-3.5 pr-8 sm:pr-10 cursor-pointer transition-all hover:bg-slate-100"
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
           >
@@ -486,7 +487,7 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <p className="text-sm font-bold text-slate-900 truncate">{source.label}</p>
                       <p className="text-xs text-slate-400 font-medium truncate">
-                        {income.description || new Date(income.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        {income.description || new Date(income.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })}
                       </p>
                     </div>
                     <div className="font-bold text-emerald-600 shrink-0">+{formatCurrency(income.amount)}</div>

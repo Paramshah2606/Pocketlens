@@ -36,8 +36,8 @@ export default function ForgotPasswordPage() {
       }
 
       // Store in sessionStorage to avoid showing in URL
-      sessionStorage.setItem("reset_email", data.email)
-      sessionStorage.setItem("reset_userId", resData.userId)
+      sessionStorage.setItem("reset_email", resData.email || data.email.trim().toLowerCase())
+      sessionStorage.removeItem("reset_token")
 
       router.push(`/verify?isReset=true`)
     } catch (err) {

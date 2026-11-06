@@ -24,9 +24,12 @@ export default function manifest() {
       { src: '/screenshots/narrow-home.png', sizes: '1170x2532', type: 'image/png', form_factor: 'narrow', label: 'PocketLens home' },
       { src: '/screenshots/narrow-preview.png', sizes: '1170x2532', type: 'image/png', form_factor: 'narrow', label: 'Your monthly spending at a glance' },
     ],
+    // Long-press the app icon: jump straight into adding an entry
     shortcuts: [
+      { name: 'Add expense', short_name: 'Expense', url: '/dashboard?add=expense', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Add income', short_name: 'Income', url: '/dashboard?add=income', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Calendar', url: '/calendar', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Expenses', url: '/expenses', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-      { name: 'Budgets', url: '/budgets', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
     ],
   }
 }
