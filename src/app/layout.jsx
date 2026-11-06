@@ -2,6 +2,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ReduxProvider } from "@/components/ReduxProvider";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { appleSplashScreens } from "@/lib/splashScreens";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,12 +38,35 @@ export const metadata = {
   verification: {
     google: 'MLpCV1yUFupl8FE9jxjOT6RoBJhIoWNApQZep2_OMBY',
   },
+  applicationName: 'PocketLens',
+  appleWebApp: {
+    capable: true,
+    title: 'PocketLens',
+    statusBarStyle: 'default',
+    startupImage: appleSplashScreens,
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport = {
+  themeColor: '#ffffff',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased bg-background text-foreground`}>
+        {/* Capture the browser's install prompt before React hydrates (see src/lib/pwaInstall.js) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__pwaInstallPrompt=e;});",
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -82,6 +107,7 @@ export default function RootLayout({ children }) {
             {children}
           </ThemeProvider>
         </ReduxProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

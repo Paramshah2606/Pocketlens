@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { InstallAppCard } from "@/components/InstallApp"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -126,6 +127,9 @@ export default function SettingsPage() {
              </CardContent>
           </div>
         </Card>
+
+        {/* Install App */}
+        <InstallAppCard />
 
         {/* Logout Section */}
         <div className="pt-2 flex justify-center md:justify-start">

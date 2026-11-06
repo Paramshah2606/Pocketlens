@@ -19,6 +19,7 @@ import AddExpenseModal from "@/components/expenses/AddExpenseModal"
 import { useDispatch } from "react-redux"
 import { openAddExpenseModal } from "@/store/uiSlice"
 import { Logo } from "@/components/ui/Logo"
+import { InstallAppButton } from "@/components/InstallApp"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: PieChart },
@@ -94,7 +95,12 @@ export default function DashboardLayout({ children }) {
             {/* Can put page title here dynamically based on pathname */}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <InstallAppButton
+              size="sm"
+              variant="secondary"
+              className="rounded-full px-3 text-xs sm:text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+            />
             <button className="relative rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-500">
               <span className="sr-only">View notifications</span>
               <Bell className="h-5 w-5" />

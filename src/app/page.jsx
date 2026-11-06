@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, PieChart, Zap, Target, LayoutDashboard, Wallet, TrendingUp, CreditCard } from "lucide-react"
+import { InstallAppButton } from "@/components/InstallApp"
 
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/Logo"
@@ -61,6 +62,12 @@ export default function LandingPage() {
                   {/* <ArrowRight className="ml-2 h-5 w-5" /> */}
                 </Link>
               </Button>
+              <InstallAppButton
+                label="Install the app"
+                variant="outline"
+                size="lg"
+                className="h-12 rounded-full px-8 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all hover:-translate-y-0.5"
+              />
               {/* <Button asChild variant="outline" size="lg" className="h-12 rounded-full px-8 border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
                 <Link href="/login">View Live Demo</Link>
               </Button> */}

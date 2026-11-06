@@ -23,12 +23,21 @@ export async function proxy(req) {
     '/help',
     '/contact',
     '/pricing',
-    '/opengraph-image',
-    '/icon'
   ];
   const isAuthApi = pathname.startsWith('/api/auth') || pathname === '/api/contact';
   const isMigrateApi = pathname === '/api/migrate-categories' || pathname === '/api/cleanup-categories';
-  const isPublicFile = pathname === '/sitemap.xml' || pathname === '/robots.txt';
+  // Static/metadata files: served to everyone and never redirected to /dashboard for logged-in users
+  // (the PWA manifest and service worker must load whether or not the user is signed in).
+  const publicFiles = [
+    '/sitemap.xml',
+    '/robots.txt',
+    '/manifest.webmanifest',
+    '/sw.js',
+    '/icon',
+    '/apple-icon',
+    '/opengraph-image',
+  ];
+  const isPublicFile = publicFiles.includes(pathname);
 
   // Allow access to public paths and auth APIs without a token
   if (publicPaths.includes(pathname) || isAuthApi || isMigrateApi || isPublicFile) {
