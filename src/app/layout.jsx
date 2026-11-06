@@ -1,4 +1,3 @@
-import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ReduxProvider } from "@/components/ReduxProvider";
@@ -6,12 +5,6 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { appleSplashScreens } from "@/lib/splashScreens";
 
-// Brand typeface (also used on the splash screens, see scripts/generate-splash.mjs)
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketlenss.vercel.app';
 
@@ -67,8 +60,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
-      <body className={`font-sans antialiased bg-background text-foreground`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans antialiased bg-background text-foreground">
         {/* Capture the browser's install prompt before React hydrates (see src/lib/pwaInstall.js) */}
         <script
           dangerouslySetInnerHTML={{
