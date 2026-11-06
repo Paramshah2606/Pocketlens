@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { Loader2, Trash2 } from "lucide-react"
 import { useDispatch } from "react-redux"
@@ -9,39 +9,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { INCOME_SOURCES } from "@/lib/incomeSources"
-import { closeAddExpenseModal, triggerRefresh } from "@/store/uiSlice"
+import { triggerRefresh } from "@/store/uiSlice"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 import { localDateKey, entryDateKey } from "@/lib/dates"
 import { toast } from "@/lib/toast"
 
 const today = () => localDateKey()
 
-// Add / edit an income entry (salary, freelance, ...). Rendered inside the add modal.
-export default function IncomeForm({ editingIncome, presetDate }) {
+// Add / edit an income entry (salary, freelance, ...). Used by the Add screen and the
+// add/edit pop-up; onSaved / onDeleted decide what happens next (close, or reset).
+export default function IncomeForm({ editingIncome = null, presetDate = null, onSaved, onDeleted, autoFocus = false }) {
   const dispatch = useDispatch()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
-  const { requestDelete, deleteDialog } = useDeleteEntry({
-    onDeleted: () => dispatch(closeAddExpenseModal()),
-  })
+  const { requestDelete, deleteDialog } = useDeleteEntry({ onDeleted })
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
-    defaultValues: { amount: "", source: "salary", description: "", date: today() },
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+    defaultValues: editingIncome
+      ? {
+          amount: editingIncome.amount,
+          source: editingIncome.source || "other",
+          description: editingIncome.description || "",
+          date: entryDateKey(editingIncome.date),
+        }
+      : { amount: "", source: "salary", description: "", date: presetDate || today() },
   })
   const watchSource = watch("source")
-
-  useEffect(() => {
-    if (editingIncome) {
-      reset({
-        amount: editingIncome.amount,
-        source: editingIncome.source || "other",
-        description: editingIncome.description || "",
-        date: entryDateKey(editingIncome.date),
-      })
-    } else {
-      reset({ amount: "", source: "salary", description: "", date: presetDate || today() })
-    }
-  }, [editingIncome, presetDate, reset])
 
   const onSubmit = async (data) => {
     setIsSubmitting(true)
@@ -58,7 +51,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
       }
       toast.success(editingIncome ? "Income updated" : "Income added")
       dispatch(triggerRefresh())
-      dispatch(closeAddExpenseModal())
+      onSaved?.()
     } catch (error) {
       setSubmitError(error.message)
     } finally {
@@ -80,7 +73,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
             inputMode="decimal"
             className="pl-9 h-14 text-2xl font-bold rounded-2xl bg-emerald-50/40 border-emerald-100 text-emerald-700 focus-visible:ring-emerald-500/20"
             placeholder="0.00"
-            autoFocus
+            autoFocus={autoFocus}
             {...register("amount", {
               required: "Amount is required",
               validate: (v) => Number(v) > 0 || "Amount must be greater than 0",
@@ -98,6 +91,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
               key={src.id}
               type="button"
               onClick={() => setValue("source", src.id)}
+              aria-pressed={watchSource === src.id}
               className={`flex flex-col items-center justify-center rounded-2xl border p-3 transition-all ${
                 watchSource === src.id
                   ? "border-transparent bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/30"
@@ -112,12 +106,14 @@ export default function IncomeForm({ editingIncome, presetDate }) {
         <input type="hidden" {...register("source")} />
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
       <div className="space-y-2">
-        <Label htmlFor="income-description" className="text-slate-700">Description (Optional)</Label>
+        <Label htmlFor="income-description" className="text-slate-700">Description (optional)</Label>
         <Input
           id="income-description"
           className="h-11 rounded-xl bg-slate-50/50 border-slate-200"
           placeholder="e.g. November salary, Client project"
+          maxLength={200}
           {...register("description")}
         />
       </div>
@@ -130,6 +126,7 @@ export default function IncomeForm({ editingIncome, presetDate }) {
           className="h-11 rounded-xl bg-slate-50/50 border-slate-200"
           {...register("date", { required: "Date is required" })}
         />
+      </div>
       </div>
 
       {submitError && <p className="text-sm text-red-500">{submitError}</p>}

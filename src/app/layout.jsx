@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ReduxProvider } from "@/components/ReduxProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { appleSplashScreens } from "@/lib/splashScreens";
 
 const inter = Inter({
@@ -113,6 +114,7 @@ export default function RootLayout({ children }) {
           </ThemeProvider>
         </ReduxProvider>
         <ServiceWorkerRegister />
+        <UpdateNotifier />
       </body>
     </html>
   );

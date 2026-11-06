@@ -7,7 +7,8 @@ import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Trash2 } from "lucide
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import { getIncomeSource } from "@/lib/incomeSources"
-import { openAddExpenseModal, openAddIncomeModal, openAddModalForDate } from "@/store/uiSlice"
+import { openAddExpenseModal, openAddIncomeModal } from "@/store/uiSlice"
+import { useOpenAdd } from "@/lib/useOpenAdd"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -49,6 +50,7 @@ export default function CalendarPage() {
   const dispatch = useDispatch()
   const refreshTrigger = useSelector((state) => state.ui.refreshTrigger)
   const { requestDelete, deleteDialog } = useDeleteEntry()
+  const openAdd = useOpenAdd()
 
   const today = useMemo(() => new Date(), [])
   const todayKey = dayKey(today.getFullYear(), today.getMonth(), today.getDate())
@@ -279,13 +281,13 @@ export default function CalendarPage() {
 
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <Button
-                  onClick={() => dispatch(openAddModalForDate({ type: "expense", date: selected }))}
+                  onClick={() => openAdd("expense", selected)}
                   className="h-10 rounded-xl"
                 >
                   <Plus className="mr-1.5 h-4 w-4" /> Expense
                 </Button>
                 <Button
-                  onClick={() => dispatch(openAddModalForDate({ type: "income", date: selected }))}
+                  onClick={() => openAdd("income", selected)}
                   className="h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-600/90"
                 >
                   <Plus className="mr-1.5 h-4 w-4" /> Income

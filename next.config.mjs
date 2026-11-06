@@ -1,5 +1,9 @@
 const isProd = process.env.NODE_ENV === 'production';
 
+// Identifies this build. Baked into the browser code and served by /api/version, so an
+// app that has been open since an older deploy can notice and offer to update.
+const appVersion = process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || `build-${Date.now()}`;
+
 // Content Security Policy. Next.js injects inline bootstrap scripts, so scripts need
 // 'unsafe-inline'; everything else is restricted to this site. Dev mode also needs eval.
 const csp = [
@@ -19,6 +23,9 @@ const csp = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
   },

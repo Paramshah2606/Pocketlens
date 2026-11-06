@@ -5,7 +5,8 @@ export default function manifest() {
     name: 'PocketLens',
     short_name: 'PocketLens',
     description: 'Track expenses instantly, gain deep insights, and manage your budgets effortlessly.',
-    start_url: '/dashboard',
+    // /app opens the Add screen on phones/tablets and the dashboard on larger screens
+    start_url: '/app',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
@@ -26,8 +27,8 @@ export default function manifest() {
     ],
     // Long-press the app icon: jump straight into adding an entry
     shortcuts: [
-      { name: 'Add expense', short_name: 'Expense', url: '/dashboard?add=expense', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-      { name: 'Add income', short_name: 'Income', url: '/dashboard?add=income', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Add expense', short_name: 'Expense', url: '/add?type=expense', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Add income', short_name: 'Income', url: '/add?type=income', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Calendar', url: '/calendar', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Expenses', url: '/expenses', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
     ],

@@ -48,7 +48,7 @@ export default function LoginPage() {
 
       // The dashboard is fetched fresh with the new cookie; an extra refresh() here
       // races the navigation and causes failed RSC requests
-      router.replace("/dashboard")
+      router.replace("/app")
     } catch (err) {
       setError(err.message)
     } finally {

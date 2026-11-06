@@ -56,6 +56,20 @@ export function parseDate(value) {
   return date;
 }
 
+// Category icons must be exactly one emoji (incl. skin tones, flags, keycaps and
+// ZWJ sequences like 🧑‍💻). Returns the emoji, or null for text / several emoji.
+const EMOJI_PARTS_RE = /^[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}‍️⃣\u{E0020}-\u{E007F}#*0-9]+$/u;
+const EMOJI_BASE_RE = /[\p{Extended_Pictographic}\p{Regional_Indicator}⃣]/u;
+const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
+export function cleanEmoji(value) {
+  if (typeof value !== 'string') return null;
+  const emoji = value.trim();
+  if (!emoji || emoji.length > 16) return null;
+  if ([...graphemes.segment(emoji)].length !== 1) return null;
+  return EMOJI_PARTS_RE.test(emoji) && EMOJI_BASE_RE.test(emoji) ? emoji : null;
+}
+
 export function isValidPassword(value) {
   return typeof value === 'string' && value.length >= 8 && value.length <= 128;
 }

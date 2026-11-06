@@ -2,10 +2,10 @@
 
 import { useEffect, useSyncExternalStore } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useDispatch, useSelector } from "react-redux"
+import { useSelector } from "react-redux"
 import { WifiOff } from "lucide-react"
 
-import { openAddExpenseModal, openAddIncomeModal } from "@/store/uiSlice"
+import { useOpenAdd, isDesktop } from "@/lib/useOpenAdd"
 
 // Session expiry: when any app API call answers 401, send the user to the login page
 // instead of leaving the screen half-broken.
@@ -45,10 +45,10 @@ export function OfflineBanner() {
   )
 }
 
-// ?add=expense | ?add=income opens the add sheet (used by the home-screen app shortcuts),
-// and "N" opens it from the keyboard on desktop.
+// ?add=expense | ?add=income (older home-screen shortcuts) and the "N" key open "add" the
+// right way for the device: the pop-up on desktop, the Add screen on phones/tablets.
 function useAddShortcuts() {
-  const dispatch = useDispatch()
+  const openAdd = useOpenAdd()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -57,9 +57,13 @@ function useAddShortcuts() {
   useEffect(() => {
     const add = searchParams.get("add")
     if (add !== "expense" && add !== "income") return
-    dispatch(add === "income" ? openAddIncomeModal() : openAddExpenseModal())
-    router.replace(pathname)
-  }, [searchParams, dispatch, router, pathname])
+    if (isDesktop()) {
+      router.replace(pathname)
+      openAdd(add)
+    } else {
+      router.replace(`/add?type=${add}`)
+    }
+  }, [searchParams, openAdd, router, pathname])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -69,12 +73,12 @@ function useAddShortcuts() {
       if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return
       if (e.key === "n" || e.key === "N") {
         e.preventDefault()
-        dispatch(openAddExpenseModal())
+        openAdd()
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [dispatch, isOpen])
+  }, [openAdd, isOpen])
 }
 
 export function AppEffects() {

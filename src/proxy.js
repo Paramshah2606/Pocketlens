@@ -21,6 +21,7 @@ function isPublicApi(pathname) {
   return (
     pathname.startsWith('/api/auth/') ||
     pathname === '/api/contact' ||
+    pathname === '/api/version' ||
     // Maintenance endpoints authenticate with ADMIN_SECRET themselves (see src/lib/admin.js)
     pathname === '/api/seed' ||
     pathname === '/api/migrate-categories' ||
@@ -59,7 +60,8 @@ export async function proxy(req) {
   if (session && (await isSessionRevoked(session))) session = null;
 
   if (AUTH_PAGES.includes(pathname)) {
-    if (session) return NextResponse.redirect(new URL('/dashboard', req.url));
+    // /app picks the home screen for the device (Add screen on phones, dashboard on desktop)
+    if (session) return NextResponse.redirect(new URL('/app', req.url));
     return token ? clearSessionCookies(pass()) : pass();
   }
 

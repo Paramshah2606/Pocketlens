@@ -12,7 +12,8 @@ import {
   Plus,
   Tags,
   CalendarDays,
-  Banknote
+  Banknote,
+  SquarePen
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,25 +26,37 @@ import { Toaster } from "@/components/Toaster"
 import { AppEffects, OfflineBanner } from "@/components/AppEffects"
 import { toast } from "@/lib/toast"
 
-const navItems = [
+// Two shells, split at Tailwind's `lg` (1024px):
+// • Laptop/desktop: sidebar navigation; adding opens a quick pop-up.
+// • Phone/tablet: top bar (logo, settings) + bottom tab bar; the Add screen is home.
+
+const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: PieChart },
   { name: "Expenses", href: "/expenses", icon: Wallet },
   { name: "Budgets", href: "/budgets", icon: Target },
-  { name: "Calendar", href: "/calendar", icon: CalendarDays, desktopOnly: true },
-  { name: "Categories", href: "/categories", icon: Tags, desktopOnly: true },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays },
+  { name: "Categories", href: "/categories", icon: Tags },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
-// The mobile bottom bar has room for four items around the add button. On phones,
-// Calendar is in the top header and Categories is reached via Settings / the add sheet.
-const mobileNavItems = navItems.filter((item) => !item.desktopOnly)
+// Bottom tab bar: two tabs either side of the raised Dashboard button
+const tabsLeft = [
+  { name: "Add", href: "/add", icon: SquarePen },
+  { name: "Expenses", href: "/expenses", icon: Wallet },
+]
+const tabsRight = [
+  { name: "Budgets", href: "/budgets", icon: Target },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays },
+]
 
-function BottomNavLink({ item, isActive }) {
+const isActivePath = (pathname, href) => pathname === href || pathname.startsWith(`${href}/`)
+
+function TabLink({ item, active }) {
   return (
     <Link
       href={item.href}
-      aria-current={isActive ? "page" : undefined}
-      className={`flex min-w-16 flex-col items-center justify-center gap-1 px-2 py-2 ${isActive ? "text-primary" : "text-slate-500"}`}
+      aria-current={active ? "page" : undefined}
+      className={`flex min-w-16 flex-col items-center justify-center gap-1 px-2 py-2 ${active ? "text-primary" : "text-slate-500"}`}
     >
       <item.icon className="h-5 w-5" />
       <span className="text-[10px] font-medium">{item.name}</span>
@@ -55,7 +68,9 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname()
   const router = useRouter()
   const dispatch = useDispatch()
-  const current = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+  const currentSidebar = sidebarItems.find((item) => isActivePath(pathname, item.href))
+  const onDashboard = isActivePath(pathname, "/dashboard")
+  const onSettings = isActivePath(pathname, "/settings")
 
   const handleLogout = async () => {
     try {
@@ -69,13 +84,13 @@ export default function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50 md:flex-row">
+    <div className="flex min-h-dvh flex-col bg-slate-50 lg:flex-row">
       <Suspense fallback={null}>
         <AppEffects />
       </Suspense>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 flex-col border-r bg-white md:flex h-dvh sticky top-0">
+      <aside className="hidden w-64 flex-col border-r bg-white lg:flex h-dvh sticky top-0">
         <div className="flex h-16 items-center border-b px-6">
           <Logo size="md" asLink={false} />
         </div>
@@ -87,8 +102,8 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <nav className="flex-1 space-y-1 p-4 overflow-y-auto custom-scrollbar" aria-label="Main">
-          {navItems.map((item) => {
-            const isActive = item === current
+          {sidebarItems.map((item) => {
+            const isActive = item === currentSidebar
             return (
               <Link
                 key={item.name}
@@ -108,7 +123,7 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         <div className="border-t p-4">
-          <p className="mb-3 hidden px-3 text-xs text-slate-400 lg:block">
+          <p className="mb-3 px-3 text-xs text-slate-400">
             Tip: press <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 font-sans font-semibold text-slate-500">N</kbd> to add an expense
           </p>
           <button
@@ -122,15 +137,17 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {/* Top Header */}
         <header className="sticky top-0 z-30 border-b bg-white shadow-sm">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
-            <div className="flex min-w-0 items-center md:hidden">
-              <Logo size="md" asLink={false} />
+          <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-6">
+            <div className="flex min-w-0 items-center lg:hidden">
+              <Link href="/add" aria-label="PocketLens home">
+                <Logo size="md" asLink={false} />
+              </Link>
             </div>
 
-            <p className="hidden truncate text-lg font-semibold text-slate-900 md:block">{current?.name || ""}</p>
+            <p className="hidden truncate text-lg font-semibold text-slate-900 lg:block">{currentSidebar?.name || (pathname === "/add" ? "Add" : "")}</p>
 
             <div className="flex items-center gap-2 sm:gap-3">
               <InstallAppButton
@@ -142,17 +159,17 @@ export default function DashboardLayout({ children }) {
                 variant="ghost"
                 size="sm"
                 onClick={() => dispatch(openAddIncomeModal())}
-                className="hidden rounded-full px-3 text-emerald-700 hover:bg-emerald-50 md:inline-flex"
+                className="hidden rounded-full px-3 text-emerald-700 hover:bg-emerald-50 lg:inline-flex"
               >
                 <Banknote className="mr-1.5 h-4 w-4" /> Add income
               </Button>
               <Link
-                href="/calendar"
-                className={`rounded-full p-2 md:hidden ${pathname === "/calendar" ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-100"}`}
-                aria-label="Calendar"
-                aria-current={pathname === "/calendar" ? "page" : undefined}
+                href="/settings"
+                className={`rounded-full p-2 lg:hidden ${onSettings ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-100"}`}
+                aria-label="Settings"
+                aria-current={onSettings ? "page" : undefined}
               >
-                <CalendarDays className="h-5 w-5" />
+                <Settings className="h-5 w-5" />
               </Link>
             </div>
           </div>
@@ -165,29 +182,35 @@ export default function DashboardLayout({ children }) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation (padded for the iPhone home indicator) */}
+      {/* Phone/tablet bottom tab bar (padded for the iPhone home indicator) */}
       <nav
         aria-label="Main"
-        className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t bg-white pt-1 pb-[env(safe-area-inset-bottom)] md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white pt-1 pb-[env(safe-area-inset-bottom)] lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
       >
-        <div className="flex h-16 w-full items-center justify-around">
-          {mobileNavItems.slice(0, 2).map((item) => (
-            <BottomNavLink key={item.name} item={item} isActive={item === current} />
+        <div className="mx-auto flex h-16 w-full max-w-xl items-center justify-around">
+          {tabsLeft.map((item) => (
+            <TabLink key={item.name} item={item} active={isActivePath(pathname, item.href)} />
           ))}
 
-          {/* Floating Action Button (FAB) for adding expense */}
-          <div className="relative -top-5 flex flex-col items-center">
-            <button
-              onClick={() => dispatch(openAddExpenseModal())}
-              aria-label="Add expense or income"
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-blue-500/30 transition-transform active:scale-95"
+          {/* Raised centre button: Dashboard */}
+          <Link
+            href="/dashboard"
+            aria-label="Dashboard"
+            aria-current={onDashboard ? "page" : undefined}
+            className="flex min-w-16 flex-col items-center gap-1"
+          >
+            <span
+              className={`-mt-7 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-blue-500/30 transition-transform active:scale-95 ${
+                onDashboard ? "ring-4 ring-blue-100" : ""
+              }`}
             >
-              <Plus className="h-6 w-6" />
-            </button>
-          </div>
+              <PieChart className="h-6 w-6" />
+            </span>
+            <span className={`text-[10px] font-medium ${onDashboard ? "text-primary" : "text-slate-500"}`}>Dashboard</span>
+          </Link>
 
-          {mobileNavItems.slice(2).map((item) => (
-            <BottomNavLink key={item.name} item={item} isActive={item === current} />
+          {tabsRight.map((item) => (
+            <TabLink key={item.name} item={item} active={isActivePath(pathname, item.href)} />
           ))}
         </div>
       </nav>

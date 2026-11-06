@@ -12,6 +12,7 @@ import Link from "next/link"
 import { openAddExpenseModal, openAddIncomeModal } from "@/store/uiSlice"
 import { getIncomeSource } from "@/lib/incomeSources"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { useOpenAdd } from "@/lib/useOpenAdd"
 import { localDateKey } from "@/lib/dates"
 
 export default function DashboardPage() {
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const dispatch = useDispatch()
   const refreshTrigger = useSelector((state) => state.ui.refreshTrigger)
   const { requestDelete, deleteDialog } = useDeleteEntry()
+  const openAdd = useOpenAdd()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -180,7 +182,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-slate-500">{getTimeRangeLabel()}</p>
               <button
-                onClick={() => dispatch(openAddIncomeModal())}
+                onClick={() => openAdd("income")}
                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" /> Add income
@@ -455,7 +457,7 @@ export default function DashboardPage() {
             <CardDescription>Salary and other money received {getTimeRangeLabel().toLowerCase()}.</CardDescription>
           </div>
           <button
-            onClick={() => dispatch(openAddIncomeModal())}
+            onClick={() => openAdd("income")}
             className="text-sm font-bold text-emerald-700 hover:text-emerald-800 flex items-center bg-emerald-50 px-4 py-2 rounded-xl transition-colors shrink-0"
           >
             <Plus className="mr-1 h-4 w-4" /> Add
@@ -467,7 +469,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <p className="text-sm text-slate-400 font-medium">No income recorded for this period.</p>
                 <button
-                  onClick={() => dispatch(openAddIncomeModal())}
+                  onClick={() => openAdd("income")}
                   className="mt-3 text-sm font-semibold text-emerald-700 hover:underline"
                 >
                   Add your salary or other income

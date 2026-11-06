@@ -5,11 +5,12 @@ import Category from '@/models/Category';
 import Expense from '@/models/Expense';
 import Budget from '@/models/Budget';
 import { visibleTo } from '@/lib/categoryAccess';
-import { cleanString } from '@/lib/validate';
+import { cleanString, cleanEmoji } from '@/lib/validate';
 
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 const cleanName = (v) => cleanString(v, { max: 40 });
-const cleanIcon = (v) => cleanString(v, { max: 16 });
+// Icons must be a single emoji (picked from the emoji picker)
+const cleanIcon = (v) => cleanEmoji(v);
 
 export async function GET(req) {
   try {
@@ -52,7 +53,7 @@ export async function POST(req) {
     const icon = cleanIcon(body.icon);
 
     if (!name || !icon) {
-      return NextResponse.json({ error: 'Name (max 40 characters) and icon are required' }, { status: 400 });
+      return NextResponse.json({ error: !name ? 'Name is required (max 40 characters)' : 'Please choose an emoji as the icon' }, { status: 400 });
     }
     if (color !== undefined && color !== null && !(typeof color === 'string' && COLOR_RE.test(color))) {
       return NextResponse.json({ error: 'Invalid color' }, { status: 400 });
@@ -131,7 +132,7 @@ export async function PUT(req) {
     }
     if (icon !== undefined) {
       const value = cleanIcon(icon);
-      if (!value) return NextResponse.json({ error: 'Icon cannot be empty' }, { status: 400 });
+      if (!value) return NextResponse.json({ error: 'Please choose an emoji as the icon' }, { status: 400 });
       updates.icon = value;
     }
     if (color !== undefined) {

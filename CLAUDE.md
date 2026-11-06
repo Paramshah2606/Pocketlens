@@ -31,7 +31,8 @@ Required in `.env.local`:
 ### Route Structure
 
 - `src/app/(auth)/` — Unauthenticated pages: login, signup, verify (OTP), forgot-password, reset-password
-- `src/app/(dashboard)/` — Authenticated pages: dashboard, expenses, budgets, settings; shares a sidebar/nav layout (`layout.jsx`)
+- `src/app/(dashboard)/` — Authenticated pages: add, dashboard, expenses, budgets, calendar, categories, settings; shares the app shell (`layout.jsx`)
+- `src/app/app/` — `/app` entry point: redirects to `/add` on phones/tablets and `/dashboard` on laptops/desktops (used after login, as the PWA `start_url`, and by "Open app")
 - `src/app/api/` — API routes grouped by resource: `auth/*`, `expenses/`, `expenses/[id]`, `budgets/`, `categories/`, `users/profile`, `insights/summary`, `income/`, `income/[id]`, `calendar/`, `seed/`
 
 ### Middleware / Auth
@@ -62,4 +63,7 @@ Redux (via `src/store/`) is used **only for UI state** — the single `uiSlice` 
 - Path alias `@` maps to `src/`.
 - `"use client"` is required on any component using hooks or browser APIs; layout/page files are Server Components by default.
 - UI primitives (Button, Input, Card, Label) are in `src/components/ui/` using `clsx` + `tailwind-merge`.
-- The dashboard layout (`src/app/(dashboard)/layout.jsx`) renders both a desktop sidebar and a mobile bottom nav bar; the FAB dispatches `openAddExpenseModal` to Redux.
+- The app shell (`src/app/(dashboard)/layout.jsx`) splits at Tailwind `lg` (1024px, `DESKTOP_QUERY` in `src/lib/useOpenAdd.js`): below it, a top bar (logo, settings) + bottom tab bar (Add · Expenses · Dashboard (raised centre) · Budgets · Calendar) with the `/add` screen as home; at/above it, a sidebar with a quick-add pop-up.
+- Category icons must be a single emoji: the UI uses `src/components/EmojiPicker.jsx` and the API validates with `cleanEmoji()` in `src/lib/validate.js`.
+- Updates: each build gets `NEXT_PUBLIC_APP_VERSION` (Vercel commit SHA; set in `next.config.mjs`). `/api/version` (public) returns the deployed version and `src/components/UpdateNotifier.jsx` shows a "new version available" banner in apps opened on an older build.
+- To start adding an entry, call `useOpenAdd()(type, date?)` — it opens the `/add` screen on phones/tablets and the pop-up on desktop. Editing always uses the pop-up (`openAddExpenseModal(expense)` / `openAddIncomeModal(income)`). Both screens share `ExpenseForm` / `IncomeForm`.

@@ -7,6 +7,7 @@ import { ChevronDown, Loader2, Lock, Pencil, Plus, Trash2, X } from "lucide-reac
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import EmojiPicker from "@/components/EmojiPicker"
 
 const COLORS = ["#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e", "#06b6d4", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#f43f5e", "#64748b"]
 
@@ -43,15 +44,13 @@ function CategoryForm({ initial, isSub, parentName, onCancel, onSaved }) {
       <p className="text-sm font-semibold text-slate-700">
         {initial ? "Edit" : "New"} {isSub ? `sub-category${parentName ? ` in ${parentName}` : ""}` : "category"}
       </p>
-      <div className="flex gap-3">
-        <div className="w-16 space-y-1">
-          <Label className="text-xs text-slate-600">Icon</Label>
-          <Input value={icon} onChange={(e) => setIcon(e.target.value)} className="h-11 bg-white text-center text-xl" required maxLength={8} aria-label="Emoji icon" />
-        </div>
-        <div className="flex-1 space-y-1">
-          <Label className="text-xs text-slate-600">Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="h-11 bg-white" placeholder={isSub ? "e.g. Uber" : "e.g. Subscriptions"} required maxLength={40} autoFocus />
-        </div>
+      <div className="space-y-1">
+        <Label htmlFor="category-name" className="text-xs text-slate-600">Name</Label>
+        <Input id="category-name" value={name} onChange={(e) => setName(e.target.value)} className="h-11 bg-white" placeholder={isSub ? "e.g. Uber" : "e.g. Subscriptions"} required maxLength={40} autoFocus />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="category-icon" className="text-xs text-slate-600">Icon</Label>
+        <EmojiPicker id="category-icon" value={icon} onChange={setIcon} />
       </div>
       {!isSub && (
         <div className="space-y-1.5">

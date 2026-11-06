@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { useSelector, useDispatch } from "react-redux"
 import { openAddExpenseModal } from "@/store/uiSlice"
 import { useDeleteEntry } from "@/components/DeleteEntryDialog"
+import { useOpenAdd } from "@/lib/useOpenAdd"
 import { localDateKey } from "@/lib/dates"
 
 export default function ExpensesPage() {
@@ -86,6 +87,7 @@ export default function ExpensesPage() {
   }, [refreshTrigger, filters])
 
   const { requestDelete, deleteDialog } = useDeleteEntry()
+  const openAdd = useOpenAdd()
 
   const handleEdit = (expense) => {
     dispatch(openAddExpenseModal(expense))
@@ -133,7 +135,7 @@ export default function ExpensesPage() {
           >
             <Filter className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
           </Button>
-          <Button size="sm" onClick={() => dispatch(openAddExpenseModal())} className="rounded-full h-9 sm:h-11 px-3 sm:px-6 shadow-md shadow-blue-500/20">
+          <Button size="sm" onClick={() => openAdd()} className="rounded-full h-9 sm:h-11 px-3 sm:px-6 shadow-md shadow-blue-500/20">
             <Plus className="mr-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> <span className="hidden sm:inline">Add Expense</span>
             <span className="sm:hidden">Add</span>
           </Button>
@@ -302,7 +304,7 @@ export default function ExpensesPage() {
               <p className="text-slate-500 mb-8 max-w-sm mt-2 leading-relaxed">
                 Adjust your filters or start tracking your spending by adding a new expense.
               </p>
-              <Button onClick={() => dispatch(openAddExpenseModal())} className="rounded-full h-12 px-8 shadow-sm">
+              <Button onClick={() => openAdd()} className="rounded-full h-12 px-8 shadow-sm">
                 <Plus className="mr-2 h-5 w-5" /> Add New Expense
               </Button>
             </div>

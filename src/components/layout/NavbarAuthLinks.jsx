@@ -17,7 +17,7 @@ export function NavbarAuthLinks() {
   if (loggedIn) {
     return (
       <Button asChild size="sm" className="rounded-full px-5 shadow-sm">
-        <Link href="/dashboard">
+        <Link href="/app">
           Open app <ArrowRight className="ml-1.5 h-4 w-4" />
         </Link>
       </Button>
